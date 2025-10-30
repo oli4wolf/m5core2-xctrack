@@ -50,29 +50,30 @@ bool deviceConnected = false;
 
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
-      M5.Lcd.println("connect");
+      M5.Display.println("connect");
       deviceConnected = true;
     };
 
     void onDisconnect(BLEServer* pServer) {
-      M5.Lcd.println("disconnect");
+      M5.Display.println("disconnect");
       deviceConnected = false;
     }
 };
 
 class MyCallbacks: public BLECharacteristicCallbacks {
   void onRead(BLECharacteristic *pCharacteristic) {
-    M5.Lcd.println("read");
+    M5.Display.println("read");
     pCharacteristic->setValue("Hello World!");
   }
   
   void onWrite(BLECharacteristic *pCharacteristic) {
-    M5.Lcd.println("write");
+    M5.Display.println("write");
     std::string value = pCharacteristic->getValue();
-    M5.Lcd.println(value.c_str());
+    M5.Display.println(value.c_str());
   }
 };
 
+// Todo: This creates a stack overflow issue, needs to be fixed later
 void initializeBLE(){
   BLEDevice::init("m5-stack");
   BLEServer *pServer = BLEDevice::createServer();
@@ -137,17 +138,20 @@ void setup() {
   xSensorMutex = xSemaphoreCreateMutex();     // Initialize the sensor mutex
   xGPSMutex = xSemaphoreCreateMutex();        // Initialize the GPS mutex
 
-  initializeBLE();
+  //initializeBLE();
 
 }
 
 void loop() {
-   // draw the sensor information (later transform it into a simple vario)
-    // Commands
-    vTaskDelay(10000 / portTICK_PERIOD_MS);
-    // generate random number between 0 and 100
-    int randomValue = random(0, 100);
-    M5.Lcd.println("Button B pressed!"+String(randomValue));
-    pCharacteristic->setValue(("Button B pressed!"+String(randomValue)).c_str());
-    pCharacteristic->notify();
+  if(M5.BtnA.wasPressed()) {
+    M5.Power.powerOff();
+  }
+  if (deviceConnected) {
+    if(M5.BtnB.wasPressed()) {
+      M5.Display.println("Button B pressed!");
+      pCharacteristic->setValue("Button B pressed!");
+      pCharacteristic->notify();
+    }
+  }
+  M5.update();
 }

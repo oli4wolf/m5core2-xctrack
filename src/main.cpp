@@ -50,35 +50,46 @@ bool deviceConnected = false;
 
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
-      M5.Display.println("connect");
+      M5.Display.println("BLE connect successful");
+      Serial.println("BLE connect successful");
       deviceConnected = true;
     };
 
     void onDisconnect(BLEServer* pServer) {
-      M5.Display.println("disconnect");
+      M5.Display.println("BLE disconnect");
+      Serial.println("BLE disconnect");
       deviceConnected = false;
     }
 };
 
 class MyCallbacks: public BLECharacteristicCallbacks {
   void onRead(BLECharacteristic *pCharacteristic) {
+    Serial.println("BLE characteristic read");
     M5.Display.println("read");
     pCharacteristic->setValue("Hello World!");
   }
-  
+
   void onWrite(BLECharacteristic *pCharacteristic) {
+    Serial.println("BLE characteristic write");
     M5.Display.println("write");
-    std::string value = pCharacteristic->getValue();
+    std::string value = pCharacteristic->getValue().c_str();
+    Serial.println("Value: ");
+    Serial.println(value.c_str());
     M5.Display.println(value.c_str());
   }
 };
 
 // Todo: This creates a stack overflow issue, needs to be fixed later
 void initializeBLE(){
+  Serial.println("Initializing BLE...");
   BLEDevice::init("m5-stack");
+  Serial.println("BLE device initialized");
   BLEServer *pServer = BLEDevice::createServer();
+  Serial.println("BLE server created");
   pServer->setCallbacks(new MyServerCallbacks());
+  Serial.println("BLE server callbacks set");
   BLEService *pService = pServer->createService(SERVICE_UUID);
+  Serial.println("BLE service created");
   pCharacteristic = pService->createCharacteristic(
                                          CHARACTERISTIC_UUID,
                                          BLECharacteristic::PROPERTY_READ |
@@ -86,12 +97,18 @@ void initializeBLE(){
                                          BLECharacteristic::PROPERTY_NOTIFY |
                                          BLECharacteristic::PROPERTY_INDICATE
                                        );
+  Serial.println("BLE characteristic created");
   pCharacteristic->setCallbacks(new MyCallbacks());
+  Serial.println("BLE characteristic callbacks set");
   pCharacteristic->addDescriptor(new BLE2902());
+  Serial.println("BLE descriptor added");
 
   pService->start();
+  Serial.println("BLE service started");
   BLEAdvertising *pAdvertising = pServer->getAdvertising();
+  Serial.println("BLE advertising started");
   pAdvertising->start();
+  Serial.println("BLE initialization complete");
 }
 
 void initializeM5Stack()
@@ -126,6 +143,53 @@ void startupScreen()
     delay(5000);
 }
 
+/*
+  Complete Getting Started Guide: https://RandomNerdTutorials.com/esp32-bluetooth-low-energy-ble-arduino-ide/
+  Based on Neil Kolban example for IDF: https://github.com/nkolban/esp32-snippets/blob/master/cpp_utils/tests/BLE%20Tests/SampleServer.cpp
+  Ported to Arduino ESP32 by Evandro Copercini
+*/
+
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEServer.h>
+
+// See the following for generating UUIDs:
+// https://www.uuidgenerator.net/
+
+#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println("Starting BLE work!");
+
+  BLEDevice::init("MyESP32");
+  BLEServer *pServer = BLEDevice::createServer();
+  BLEService *pService = pServer->createService(SERVICE_UUID);
+  BLECharacteristic *pCharacteristic = pService->createCharacteristic(
+                                         CHARACTERISTIC_UUID,
+                                         BLECharacteristic::PROPERTY_READ |
+                                         BLECharacteristic::PROPERTY_WRITE
+                                       );
+
+  pCharacteristic->setValue("Hello World says Neil");
+  pService->start();
+  // BLEAdvertising *pAdvertising = pServer->getAdvertising();  // this still is working for backward compatibility
+  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->setScanResponse(true);
+  pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
+  pAdvertising->setMinPreferred(0x12);
+  BLEDevice::startAdvertising();
+  Serial.println("Characteristic defined! Now you can read it in your phone!");
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  delay(2000);
+}
+
+/**
 void setup() {
   // put your setup code here, to run once:
   initializeM5Stack();
@@ -154,4 +218,4 @@ void loop() {
     }
   }
   M5.update();
-}
+}**/

@@ -149,9 +149,7 @@ void startupScreen()
   Ported to Arduino ESP32 by Evandro Copercini
 */
 
-#include <BLEDevice.h>
-#include <BLEUtils.h>
-#include <BLEServer.h>
+
 
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
@@ -182,6 +180,17 @@ void setup() {
   pAdvertising->setMinPreferred(0x12);
   BLEDevice::startAdvertising();
   Serial.println("Characteristic defined! Now you can read it in your phone!");
+
+    // put your setup code here, to run once:
+  initializeM5Stack();
+  startupScreen();
+  // TASK Initialisation
+  initSensorTask();     // Initialize the sensor task components
+  initGPSTask();        // Initialize the GPS task components
+  initVariometerTask(); // Initialize the variometer task components
+
+  xSensorMutex = xSemaphoreCreateMutex();     // Initialize the sensor mutex
+  xGPSMutex = xSemaphoreCreateMutex();        // Initialize the GPS mutex
 }
 
 void loop() {

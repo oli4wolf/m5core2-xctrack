@@ -64,11 +64,6 @@ const int DIR_ICON_R = DIRECTION_ICON_RADIUS;
 const int DIR_ICON_EDGE_WIDTH = 3; // Example value, adjust as needed
 const float DIR_ICON_ANGLE = M_PI / 6; // Example value, adjust as needed (30 degrees)
 
-const uint16_t DIR_ICON_TRANS_COLOR = TFT_TRANSPARENT;
-const uint16_t DIR_ICON_BG_COLOR = TFT_WHITE;
-const uint16_t DIR_ICON_COLOR_INACTIVE = TFT_DARKGREY;
-const uint16_t DIR_ICON_COLOR_ACTIVE = TFT_DARKGREEN; // For active state, if needed
-
 const uint8_t dir_icon_palette_id_trans = 0;
 const uint8_t dir_icon_palette_id_bg = 1;
 const uint8_t dir_icon_palette_id_fg = 2;

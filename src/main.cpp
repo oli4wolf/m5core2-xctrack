@@ -1,5 +1,5 @@
 #include <esp_system.h> // For PRO_CPU_NUM and APP_CPU_NUM
-#include <M5Unified.h> // Make the M5Unified library available to your program.
+#include <M5Unified.h>  // Make the M5Unified library available to your program.
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h> // Required for mutex
@@ -9,10 +9,11 @@
 #include <BLEServer.h>
 #include <BLE2902.h>
 
+#include "ble_uart.h"        // Include the BLE UART header
 #include "sensor_task.h"     // Include the new sensor task header
 #include "gps_task.h"        // Include the new GPS task header
 #include "variometer_task.h" // Include the new variometer task header
-#include "config.h"         // Include configuration constants
+#include "config.h"          // Include configuration constants
 
 // BLE Server example
 // https://github.com/naoki-sawada/m5stack-ble/blob/master/m5stack-ble/m5stack-ble.ino
@@ -29,8 +30,8 @@ SemaphoreHandle_t xSensorMutex;
 double globalLatitude = 46.947597;
 double globalLongitude = 7.440434;
 double globalAltitude = 542.5; // Initial altitude set to Bern, Switzerland
-bool globalTestdata = false; // Flag to indicate if test data is being used
-bool globalValid = false; // Indicates if a valid GPS fix is available
+bool globalTestdata = false;   // Flag to indicate if test data is being used
+bool globalValid = false;      // Indicates if a valid GPS fix is available
 double globalDirection;
 double globalSpeed; // Added for GPS speed in km/h
 uint32_t globalTime;
@@ -41,190 +42,98 @@ extern const int SENSOR_TASK_STACK_SIZE;
 extern const int GPS_TASK_STACK_SIZE;
 extern const int VARIOMETER_TASK_STACK_SIZE;
 
-#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define SERVICE_UUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
-BLEServer* pServer = NULL;
-BLECharacteristic* pCharacteristic = NULL;
+BLEServer *pServer = NULL;
+BLECharacteristic *pCharacteristic = NULL;
 bool deviceConnected = false;
 
-
-class MyServerCallbacks: public BLEServerCallbacks {
-    void onConnect(BLEServer* pServer) {
-      M5.Display.println("BLE connect successful");
-      Serial.println("BLE connect successful");
-      deviceConnected = true;
-    };
-
-    void onDisconnect(BLEServer* pServer) {
-      M5.Display.println("BLE disconnect");
-      Serial.println("BLE disconnect");
-      deviceConnected = false;
-    }
-};
-
-class MyCallbacks: public BLECharacteristicCallbacks {
-  void onRead(BLECharacteristic *pCharacteristic) {
-    Serial.println("BLE characteristic read");
-    M5.Display.println("read");
-    pCharacteristic->setValue("Hello World!");
+static void ble_task(void *pvParameter)
+{
+  ble_uart_init();
+  ESP_LOGD("main.cpp","Bluetooth LE LK8EX1 messages @ 10Hz");
+  while (1)
+  {
+    int32_t altitudeM = 0;
+    int32_t climbrateCps = 0;
+    float batteryLevel = 0.0f;
+    float batVoltage = M5.Power.getBatteryLevel();
+    ble_uart_transmit_LK8EX1(altitudeM, climbrateCps, batteryLevel);
+    ESP_LOGD("main.cpp","Transmitted LK8EX1 message: Altitude=%d m, ClimbRate=%d cm/s, Battery=%.2f V", altitudeM, climbrateCps, batteryLevel);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
   }
+}
 
-  void onWrite(BLECharacteristic *pCharacteristic) {
-    Serial.println("BLE characteristic write");
-    M5.Display.println("write");
-    std::string value = pCharacteristic->getValue().c_str();
-    Serial.println("Value: ");
-    Serial.println(value.c_str());
-    M5.Display.println(value.c_str());
-  }
-};
-
-// Todo: This creates a stack overflow issue, needs to be fixed later
-void initializeBLE(){
-  Serial.println("Initializing BLE...");
-  BLEDevice::init("m5-stack");
-  Serial.println("BLE device initialized");
-  BLEServer *pServer = BLEDevice::createServer();
-  Serial.println("BLE server created");
-  pServer->setCallbacks(new MyServerCallbacks());
-  Serial.println("BLE server callbacks set");
-  BLEService *pService = pServer->createService(SERVICE_UUID);
-  Serial.println("BLE service created");
-  pCharacteristic = pService->createCharacteristic(
-                                         CHARACTERISTIC_UUID,
-                                         BLECharacteristic::PROPERTY_READ |
-                                         BLECharacteristic::PROPERTY_WRITE |
-                                         BLECharacteristic::PROPERTY_NOTIFY |
-                                         BLECharacteristic::PROPERTY_INDICATE
-                                       );
-  Serial.println("BLE characteristic created");
-  pCharacteristic->setCallbacks(new MyCallbacks());
-  Serial.println("BLE characteristic callbacks set");
-  pCharacteristic->addDescriptor(new BLE2902());
-  Serial.println("BLE descriptor added");
-
-  pService->start();
-  Serial.println("BLE service started");
-  BLEAdvertising *pAdvertising = pServer->getAdvertising();
-  Serial.println("BLE advertising started");
-  pAdvertising->start();
-  Serial.println("BLE initialization complete");
+void initializeBLE()
+{
+  xTaskCreatePinnedToCore(
+      ble_task,   // Task function
+      "BLE Task", // Name of the task
+      4096,       // Stack size in bytes
+      NULL,       // Task input parameter
+      1,          // Priority of the task
+      NULL,       // Task handle
+      APP_CPU_NUM // Run on APP CPU
+  );
 }
 
 void initializeM5Stack()
 {
-// M5Stack Core2 Initialization
-// GPS, Sound, Bluetooth, No Wifi, No SD at the moment.
+  // M5Stack Core2 Initialization
+  // GPS, Sound, Bluetooth, No Wifi, No SD at the moment.
 
-    auto cfg = M5.config();
-    cfg.serial_baudrate = 115200;
-    cfg.internal_imu = true;  // default=true. use internal IMU.
-    cfg.internal_rtc = true;  // default=true. use internal RTC.
-    cfg.internal_spk = true;  // default=true. use internal speaker.
-    cfg.internal_mic = false; // default=true. use internal microphone.
-    cfg.external_imu = false; // default=false. use Unit Accel & Gyro.
-    cfg.external_rtc = false; // default=false. use Unit RTC.
+  auto cfg = M5.config();
+  cfg.serial_baudrate = 115200;
+  cfg.internal_imu = true;  // default=true. use internal IMU.
+  cfg.internal_rtc = true;  // default=true. use internal RTC.
+  cfg.internal_spk = true;  // default=true. use internal speaker.
+  cfg.internal_mic = false; // default=true. use internal microphone.
+  cfg.external_imu = false; // default=false. use Unit Accel & Gyro.
+  cfg.external_rtc = false; // default=false. use Unit RTC.
 
-    M5.begin(cfg);
-    lcd.init();
-    M5.In_I2C.release();
+  M5.begin(cfg);
+  lcd.init();
+  M5.In_I2C.release();
 }
 
 void startupScreen()
 {
-    lcd.fillScreen(TFT_BLACK);
-    lcd.setCursor(0, 0);
-    lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-    lcd.setTextSize(1);
-    lcd.println("M5Stack Core2 XCTrack");
-    lcd.println("v0.1");
-    lcd.println("by @oli4wolf on github");
-    lcd.println("This is a non-commercial project.");
-    delay(5000);
+  lcd.fillScreen(TFT_BLACK);
+  lcd.setCursor(0, 0);
+  lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+  lcd.setTextSize(1);
+  lcd.println("M5Stack Core2 XCTrack");
+  lcd.println("v0.1");
+  lcd.println("by @oli4wolf on github");
+  lcd.println("This is a non-commercial project.");
+  lcd.printf("Battery Level: %.2f V\n", M5.Power.getBatteryLevel());
+  delay(5000);
 }
 
-/*
-  Complete Getting Started Guide: https://RandomNerdTutorials.com/esp32-bluetooth-low-energy-ble-arduino-ide/
-  Based on Neil Kolban example for IDF: https://github.com/nkolban/esp32-snippets/blob/master/cpp_utils/tests/BLE%20Tests/SampleServer.cpp
-  Ported to Arduino ESP32 by Evandro Copercini
-*/
-
-
-
-// See the following for generating UUIDs:
-// https://www.uuidgenerator.net/
-
-#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
-
-void setup() {
+void setup()
+{
   Serial.begin(115200);
   Serial.println("Starting BLE work!");
 
-  BLEDevice::init("MyESP32");
-  BLEServer *pServer = BLEDevice::createServer();
-  BLEService *pService = pServer->createService(SERVICE_UUID);
-  BLECharacteristic *pCharacteristic = pService->createCharacteristic(
-                                         CHARACTERISTIC_UUID,
-                                         BLECharacteristic::PROPERTY_READ |
-                                         BLECharacteristic::PROPERTY_WRITE
-                                       );
+  float batVoltage = M5.Power.getBatteryLevel();
 
-  pCharacteristic->setValue("Hello World says Neil");
-  pService->start();
-  // BLEAdvertising *pAdvertising = pServer->getAdvertising();  // this still is working for backward compatibility
-  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
-  pAdvertising->addServiceUUID(SERVICE_UUID);
-  pAdvertising->setScanResponse(true);
-  pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
-  pAdvertising->setMinPreferred(0x12);
-  BLEDevice::startAdvertising();
-  Serial.println("Characteristic defined! Now you can read it in your phone!");
-
-    // put your setup code here, to run once:
-  initializeM5Stack();
   startupScreen();
+  initializeM5Stack();
+
+  // Initialize BLE
+  initializeBLE();
+
   // TASK Initialisation
   initSensorTask();     // Initialize the sensor task components
   initGPSTask();        // Initialize the GPS task components
   initVariometerTask(); // Initialize the variometer task components
 
-  xSensorMutex = xSemaphoreCreateMutex();     // Initialize the sensor mutex
-  xGPSMutex = xSemaphoreCreateMutex();        // Initialize the GPS mutex
+  xSensorMutex = xSemaphoreCreateMutex(); // Initialize the sensor mutex
+  xGPSMutex = xSemaphoreCreateMutex();    // Initialize the GPS mutex
 }
 
-void loop() {
+void loop()
+{
   // put your main code here, to run repeatedly:
   delay(2000);
 }
-
-/**
-void setup() {
-  // put your setup code here, to run once:
-  initializeM5Stack();
-  startupScreen();
-  // TASK Initialisation
-  initSensorTask();     // Initialize the sensor task components
-  initGPSTask();        // Initialize the GPS task components
-  initVariometerTask(); // Initialize the variometer task components
-
-  xSensorMutex = xSemaphoreCreateMutex();     // Initialize the sensor mutex
-  xGPSMutex = xSemaphoreCreateMutex();        // Initialize the GPS mutex
-
-  //initializeBLE();
-
-}
-
-void loop() {
-  if(M5.BtnA.wasPressed()) {
-    M5.Power.powerOff();
-  }
-  if (deviceConnected) {
-    if(M5.BtnB.wasPressed()) {
-      M5.Display.println("Button B pressed!");
-      pCharacteristic->setValue("Button B pressed!");
-      pCharacteristic->notify();
-    }
-  }
-  M5.update();
-}**/

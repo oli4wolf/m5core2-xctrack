@@ -1,48 +1,40 @@
 #include "ble_uart.h"
 #include <Arduino.h>
-#include <esp_gap_ble_api.h>
-#include <esp_gattc_api.h>
-#include <esp_gatt_defs.h>
-#include <esp_bt_main.h>
-#include <esp_gatt_common_api.h>
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEServer.h>
+#include <BLE2902.h>
 #include "config.h"
-#include <NimBLEDevice.h>
 #include <M5Unified.h>
 
 //https://github.com/har-in-air/ESP32C3_BLUETOOTH_AUDIO_VARIO/blob/479e52d7708047b11a5285bc00b2d51094e3c3b5/src/ble_uart.cpp
 
 #define SERVICE_UUID           "6E400001-B5A3-F393-E0A9-E50E24DCCA9E" // UART service UUID
-
 #define CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
 #define CHARACTERISTIC_UUID_TX "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
 
-NimBLEServer* pBLEServer                = NULL;
-NimBLEService* pService                 = NULL;
-NimBLECharacteristic* pTxCharacteristic = NULL;
-NimBLECharacteristic* pRxCharacteristic = NULL;
+BLEServer* pBLEServer                = NULL;
+BLEService* pService                 = NULL;
+BLECharacteristic* pTxCharacteristic = NULL;
+BLECharacteristic* pRxCharacteristic = NULL;
 
 static uint8_t ble_uart_nmea_checksum(const char *szNMEA);
 
 void ble_uart_init() {
-	NimBLEDevice::init("BLE-Vario");
-	NimBLEDevice::setMTU(46);
-	// default power level is +3dB, max +9dB
-	//NimBLEDevice::setPower(ESP_PWR_LVL_N3); // -3dB
-	NimBLEDevice::setPower(ESP_PWR_LVL_N0); // 0dB Device ist gleich nebendran.
-    //NimBLEDevice::setPower(ESP_PWR_LVL_P6);  // +6db 
+	BLEDevice::init("M5Core2-Vario");
+	BLEDevice::setMTU(46);
+	BLEDevice::setPower(ESP_PWR_LVL_N0); // 0dB Device ist gleich nebendran.
 
-	NimBLEDevice::setSecurityAuth(true, true, true);
-	NimBLEDevice::setSecurityPasskey(123456);
-	NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY);
-
-	pBLEServer = NimBLEDevice::createServer();
+	pBLEServer = BLEDevice::createServer();
 
 	pService          = pBLEServer->createService(SERVICE_UUID);
-	pTxCharacteristic = pService->createCharacteristic(CHARACTERISTIC_UUID_TX, NIMBLE_PROPERTY::NOTIFY);
+	pTxCharacteristic = pService->createCharacteristic(CHARACTERISTIC_UUID_TX, BLECharacteristic::PROPERTY_NOTIFY);
 
 	pRxCharacteristic = pService->createCharacteristic(
 		CHARACTERISTIC_UUID_RX,
-		NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_ENC | NIMBLE_PROPERTY::WRITE_AUTHEN);
+		BLECharacteristic::PROPERTY_WRITE);
+
+	pTxCharacteristic->addDescriptor(new BLE2902());
 
 	pService->start();
 	pBLEServer->getAdvertising()->start();

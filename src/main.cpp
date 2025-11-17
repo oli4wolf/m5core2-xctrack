@@ -134,6 +134,13 @@ void setup()
 
 void loop()
 {
+  lcd.fillScreen(TFT_BLACK);
+  lcd.setCursor(0, 0);
+  lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+  lcd.setTextSize(2);
+  lcd.printf("Alt: %.1f m\n", globalAltitude_m);
+  lcd.printf("Vario: %.2f m/s\n", globalVerticalSpeed_mps);
+  lcd.printf("Battery: %.2f V\n", M5.Power.getBatteryLevel());
   // put your main code here, to run repeatedly:
   delay(2000);
 }

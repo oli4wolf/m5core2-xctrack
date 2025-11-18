@@ -18,26 +18,46 @@ BLEService* pService                 = NULL;
 BLECharacteristic* pTxCharacteristic = NULL;
 BLECharacteristic* pRxCharacteristic = NULL;
 
+class MyServerCallbacks : public BLEServerCallbacks {
+    void onConnect(BLEServer* pServer) {
+        ESP_LOGD("ble_uart.cpp", "BLE client connected");
+    }
+    void onDisconnect(BLEServer* pServer) {
+        ESP_LOGD("ble_uart.cpp", "BLE client disconnected");
+        pServer->getAdvertising()->start(); // Restart advertising
+    }
+};
+
 static uint8_t ble_uart_nmea_checksum(const char *szNMEA);
 
 void ble_uart_init() {
+	ESP_LOGD("ble_uart.cpp", "Starting BLE initialization");
 	BLEDevice::init("M5Core2-Vario");
 	BLEDevice::setMTU(46);
 	BLEDevice::setPower(ESP_PWR_LVL_N0); // 0dB Device ist gleich nebendran.
 
 	pBLEServer = BLEDevice::createServer();
+	pBLEServer->setCallbacks(new MyServerCallbacks());
+	ESP_LOGD("ble_uart.cpp", "BLE server callbacks set");
 
 	pService          = pBLEServer->createService(SERVICE_UUID);
+
 	pTxCharacteristic = pService->createCharacteristic(CHARACTERISTIC_UUID_TX, BLECharacteristic::PROPERTY_NOTIFY);
 
 	pRxCharacteristic = pService->createCharacteristic(
 		CHARACTERISTIC_UUID_RX,
 		BLECharacteristic::PROPERTY_WRITE);
-
+	ESP_LOGD("ble_uart.cpp", "Adding BLE2902 descriptor to TX characteristic");
 	pTxCharacteristic->addDescriptor(new BLE2902());
+	ESP_LOGD("ble_uart.cpp", "BLE2902 descriptor added successfully");
 
+	ESP_LOGD("ble_uart.cpp", "Starting BLE service");
 	pService->start();
+	ESP_LOGD("ble_uart.cpp", "BLE service started");
+
+	ESP_LOGD("ble_uart.cpp", "Starting BLE advertising");
 	pBLEServer->getAdvertising()->start();
+	ESP_LOGD("ble_uart.cpp", "BLE advertising started");
 	}
 
 

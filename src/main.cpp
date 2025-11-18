@@ -4,11 +4,6 @@
 #include <freertos/task.h>
 #include <freertos/semphr.h> // Required for mutex
 
-#include <BLEDevice.h>
-#include <BLEUtils.h>
-#include <BLEServer.h>
-#include <BLE2902.h>
-
 #include "ble_uart.h"        // Include the BLE UART header
 #include "sensor_task.h"     // Include the new sensor task header
 #include "gps_task.h"        // Include the new GPS task header
@@ -42,11 +37,6 @@ extern const int SENSOR_TASK_STACK_SIZE;
 extern const int GPS_TASK_STACK_SIZE;
 extern const int VARIOMETER_TASK_STACK_SIZE;
 
-#define SERVICE_UUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
-BLEServer *pServer = NULL;
-BLECharacteristic *pCharacteristic = NULL;
-bool deviceConnected = false;
 
 static void ble_task(void *pvParameter)
 {

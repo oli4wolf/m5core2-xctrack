@@ -48,10 +48,9 @@ static void ble_task(void *pvParameter)
   {
     int32_t altitudeM = 0;
     int32_t climbrateCps = 0;
-    float batteryLevel = 0.0f;
-    float batVoltage = M5.Power.getBatteryLevel();
-    ble_uart_transmit_LK8EX1(altitudeM, climbrateCps, batteryLevel);
-    ESP_LOGD("main.cpp","Transmitted LK8EX1 message: Altitude=%d m, ClimbRate=%d cm/s, Battery=%.2f V", altitudeM, climbrateCps, batteryLevel);
+    float batVoltage = M5.Power.getBatteryVoltage();
+    ble_uart_transmit_LK8EX1(altitudeM, climbrateCps, batVoltage);
+    ESP_LOGD("main.cpp","Transmitted LK8EX1 message: Altitude=%d m, ClimbRate=%d cm/s, Battery=%.2f V", altitudeM, climbrateCps, batVoltage);
     vTaskDelay(100 / portTICK_PERIOD_MS);
   }
 }
@@ -134,19 +133,18 @@ void setup()
   Serial.println("Starting BLE work!");
 
   float batVoltage = M5.Power.getBatteryLevel();
+  xSensorMutex = xSemaphoreCreateMutex(); // Initialize the sensor mutex
+  xSemaphoreGive(xSensorMutex);
 
   startupScreen();
   initializeM5Stack();
-  initSensorTask(); // Start the sensor reading task
+  initSensor(); // Start the sensor reading task
   //initGPSTask();        // Initialize the GPS task components
   initVariometerTask(); // Initialize the variometer task components
   // Initialize BLE
   initializeSensorTask();
-  //initializeVariometerTask();
   initializeBLE();
 
-  xSensorMutex = xSemaphoreCreateMutex(); // Initialize the sensor mutex
-  xGPSMutex = xSemaphoreCreateMutex();    // Initialize the GPS mutex
 }
 
 void loop()
@@ -155,9 +153,9 @@ void loop()
   lcd.setCursor(0, 0);
   lcd.setTextColor(TFT_WHITE, TFT_BLACK);
   lcd.setTextSize(2);
-  lcd.printf("Alt: %.1f m\n", globalAltitude_m);
-  lcd.printf("Vario: %.2f m/s\n", globalVerticalSpeed_mps);
-  lcd.printf("Battery: %.2f V\n", M5.Power.getBatteryLevel());
+  lcd.printf("Pressure: %.1f \n", globalPressure);
+  lcd.printf("Temperature: %.2f°\n", globalTemperature);
+  lcd.printf("Battery: %.2f V\n", M5.Power.getBatteryVoltage());
 
   ESP_LOGI("main.cpp","Altitude: %.1f m, Vario: %.2f m/s, Battery: %.2f V", globalAltitude_m, globalVerticalSpeed_mps, M5.Power.getBatteryLevel());
   // put your main code here, to run repeatedly:

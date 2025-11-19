@@ -11,7 +11,7 @@ extern SemaphoreHandle_t xSensorMutex;
 MS5637 barometricSensor;
 static uint32_t sensor_count = 0;
 
-void initSensorTask() {
+void initSensor() {
     // Initialize I2C for external port.A (SDA=32, SCL=33)
     Wire.begin(M5.Ex_I2C.getSDA(),  M5.Ex_I2C.getSCL(), 400000); // Use external I2C pins with 400kHz
 
@@ -38,10 +38,10 @@ void sensorReadTask(void *pvParameters) {
         ESP_LOGD("sensor_task.cpp", "Temperature read: %.2f", temperature);
 
         if (xSemaphoreTake(xSensorMutex, (TickType_t)10) == pdTRUE) { // Attempt to take mutex with a timeout
-        globalPressure = pressure;
-        globalTemperature = temperature;
-        xSemaphoreGive(xSensorMutex);
-        ESP_LOGD("sensor_task.cpp", "Sensor mutex released");
+            globalPressure = pressure;
+            globalTemperature = temperature;
+            xSemaphoreGive(xSensorMutex);
+            ESP_LOGD("sensor_task.cpp", "Sensor mutex released");
         } else {
             ESP_LOGE("Climb", "SensorReadTask: Could not take sensor mutex.");
         }

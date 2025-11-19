@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-void initSensorTask();
+void initSensor();
 void sensorReadTask(void *pvParameters);
 
 #ifdef __cplusplus

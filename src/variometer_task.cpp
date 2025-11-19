@@ -98,7 +98,6 @@ void variometerTask(void *pvParameters) {
                 globalAltitude_m = averagedAltitude;
                 globalVerticalSpeed_mps = verticalSpeed;
                 xSemaphoreGive(xVariometerMutex);
-                //xEventGroupSetBits(xGuiUpdateEventGroup, GUI_EVENT_VARIO_DATA_READY); // Signal GUI task
             }
 
             // Tone generation logic

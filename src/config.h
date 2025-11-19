@@ -41,7 +41,8 @@ const int TONE_DURATION_MS = 50;
 const int SINKING_TONE_BASE_FREQ_HZ = 500;
 const int SINKING_TONE_MULTIPLIER_HZ_PER_MPS = 50;
 const int MIN_TONE_FREQ_HZ = 100;
-const int VARIOMETER_TASK_DELAY_MS = 50;
+// Todo: Change
+const int VARIOMETER_TASK_DELAY_MS = 5000;
 
 // Altitude Filter
 const int ALTITUDE_FILTER_SIZE = 10; // Number of samples for moving average filter

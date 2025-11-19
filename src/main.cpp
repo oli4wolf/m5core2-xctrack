@@ -29,6 +29,8 @@ bool globalTestdata = false;   // Flag to indicate if test data is being used
 bool globalValid = false;      // Indicates if a valid GPS fix is available
 double globalDirection;
 double globalSpeed; // Added for GPS speed in km/h
+float globalPressure = 0.0f;
+float globalTemperature=0.0f; // Added for global temperature
 uint32_t globalTime;
 SemaphoreHandle_t xGPSMutex;
 
@@ -67,6 +69,32 @@ void initializeBLE()
   );
 }
 
+void initializeSensorTask()
+{
+  xTaskCreatePinnedToCore(
+      sensorReadTask,   // Task function
+      "Sensor Read Task", // Name of the task
+      8192,       // Stack size in bytes
+      NULL,       // Task input parameter
+      1,          // Priority of the task
+      NULL,       // Task handle
+      APP_CPU_NUM // Run on APP CPU
+  );
+}
+
+void initializeVariometerTask()
+{
+  xTaskCreatePinnedToCore(
+      variometerTask,   // Task function
+      "Variometer Task", // Name of the task
+      8192,       // Stack size in bytes
+      NULL,       // Task input parameter
+      1,          // Priority of the task
+      NULL,       // Task handle
+      APP_CPU_NUM // Run on APP CPU
+  );
+}
+
 void initializeM5Stack()
 {
   // M5Stack Core2 Initialization
@@ -83,7 +111,7 @@ void initializeM5Stack()
 
   M5.begin(cfg);
   lcd.init();
-  M5.In_I2C.release();
+  M5.Ex_I2C.release();
 }
 
 void startupScreen()
@@ -109,14 +137,13 @@ void setup()
 
   startupScreen();
   initializeM5Stack();
-
-  // Initialize BLE
-  initializeBLE();
-
-  // TASK Initialisation
-  initSensorTask();     // Initialize the sensor task components
-  initGPSTask();        // Initialize the GPS task components
+  initSensorTask(); // Start the sensor reading task
+  //initGPSTask();        // Initialize the GPS task components
   initVariometerTask(); // Initialize the variometer task components
+  // Initialize BLE
+  initializeSensorTask();
+  //initializeVariometerTask();
+  initializeBLE();
 
   xSensorMutex = xSemaphoreCreateMutex(); // Initialize the sensor mutex
   xGPSMutex = xSemaphoreCreateMutex();    // Initialize the GPS mutex
@@ -131,6 +158,8 @@ void loop()
   lcd.printf("Alt: %.1f m\n", globalAltitude_m);
   lcd.printf("Vario: %.2f m/s\n", globalVerticalSpeed_mps);
   lcd.printf("Battery: %.2f V\n", M5.Power.getBatteryLevel());
+
+  ESP_LOGI("main.cpp","Altitude: %.1f m, Vario: %.2f m/s, Battery: %.2f V", globalAltitude_m, globalVerticalSpeed_mps, M5.Power.getBatteryLevel());
   // put your main code here, to run repeatedly:
   delay(2000);
 }

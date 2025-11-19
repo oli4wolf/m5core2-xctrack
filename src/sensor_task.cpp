@@ -12,6 +12,9 @@ MS5637 barometricSensor;
 static uint32_t sensor_count = 0;
 
 void initSensorTask() {
+    // Initialize I2C for external port.A (SDA=32, SCL=33)
+    Wire.begin(M5.Ex_I2C.getSDA(),  M5.Ex_I2C.getSCL(), 400000); // Use external I2C pins with 400kHz
+
     if (barometricSensor.begin(Wire) == false)
     {
         ESP_LOGE("Climb", "MS5637 sensor did not respond. Please check wiring and I2C address.");
@@ -24,9 +27,6 @@ void initSensorTask() {
 
 void sensorReadTask(void *pvParameters) {
     (void) pvParameters; // Suppress unused parameter warning
-
-    Wire.begin(M5.Ex_I2C.getSDA(), M5.Ex_I2C.getSCL()); // Reconfigure default Wire to use M5.Ex_I2C pins
-    Wire.setClock(400000); // Set I2C frequency to 400kHz for MS5637
 
     for (;;) {
         ESP_LOGD("sensor_task.cpp", "Sensor task iteration start");
@@ -48,6 +48,7 @@ void sensorReadTask(void *pvParameters) {
 
         sensor_count++;
         ESP_LOGD("sensor_task.cpp", "Sensor task iteration end, delaying 200ms");
-        vTaskDelay(pdMS_TO_TICKS(200)); // Wait 0.2 second
+        // Todo change the timing.
+        vTaskDelay(pdMS_TO_TICKS(2000)); // Wait 0.2 second
     }
 }

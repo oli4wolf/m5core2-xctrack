@@ -38,24 +38,16 @@ void ble_uart_init() {
 
 	pBLEServer = BLEDevice::createServer();
 	pBLEServer->setCallbacks(new MyServerCallbacks());
-	ESP_LOGD("ble_uart.cpp", "BLE server callbacks set");
 
 	pService          = pBLEServer->createService(SERVICE_UUID);
-
+	
 	pTxCharacteristic = pService->createCharacteristic(CHARACTERISTIC_UUID_TX, BLECharacteristic::PROPERTY_NOTIFY);
-
 	pRxCharacteristic = pService->createCharacteristic(
 		CHARACTERISTIC_UUID_RX,
 		BLECharacteristic::PROPERTY_WRITE);
-	ESP_LOGD("ble_uart.cpp", "Adding BLE2902 descriptor to TX characteristic");
 	pTxCharacteristic->addDescriptor(new BLE2902());
-	ESP_LOGD("ble_uart.cpp", "BLE2902 descriptor added successfully");
 
-	ESP_LOGD("ble_uart.cpp", "Starting BLE service");
 	pService->start();
-	ESP_LOGD("ble_uart.cpp", "BLE service started");
-
-	ESP_LOGD("ble_uart.cpp", "Starting BLE advertising");
 	pBLEServer->getAdvertising()->start();
 	ESP_LOGD("ble_uart.cpp", "BLE advertising started");
 	}
@@ -71,7 +63,7 @@ static uint8_t ble_uart_nmea_checksum(const char *szNMEA){
 	return cksum;
 	}
 
-   
+// $LK8EX1,<pressure Pa>,<altitude m>,<vario cm/s>,<temperature C>,<battery V>*<checksum>
 void ble_uart_transmit_LK8EX1(int32_t altm, int32_t cps, float batVoltage) {
 	char szmsg[40];
 	sprintf(szmsg, "$LK8EX1,999999,%d,%d,99,%.1f*", altm, cps, batVoltage);

@@ -4,6 +4,8 @@
 #include <freertos/task.h>
 #include <freertos/semphr.h> // Required for mutex
 
+#include "esp_log.h"       // For ESP logging functions
+
 #include "ble_uart.h"        // Include the BLE UART header
 #include "sensor_task.h"     // Include the new sensor task header
 #include "gps_task.h"        // Include the new GPS task header
@@ -135,6 +137,10 @@ void setup()
   float batVoltage = M5.Power.getBatteryLevel();
   xSensorMutex = xSemaphoreCreateMutex(); // Initialize the sensor mutex
   xSemaphoreGive(xSensorMutex);
+
+  // Suppress debug logs for BLE-related tags (adjust tags as needed based on library output)
+  esp_log_level_set("BLE*", ESP_LOG_WARN);  // Example: Suppress for BLE components
+  esp_log_level_set("bt", ESP_LOG_WARN);
 
   startupScreen();
   initializeM5Stack();

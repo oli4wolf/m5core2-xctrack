@@ -3,3 +3,4 @@ I have some M5Stack Core2 lying around and wanted to try to pair them with senso
 
 ## Links ##
 https://xctrack.org/External_Devices.html
+https://github.com/har-in-air/ESP32C3_BLUETOOTH_AUDIO_VARIO

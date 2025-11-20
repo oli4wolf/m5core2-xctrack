@@ -11,36 +11,41 @@ extern SemaphoreHandle_t xSensorMutex;
 MS5637 barometricSensor;
 static uint32_t sensor_count = 0;
 
-void initSensorTask() {
+void initSensor() {
+    M5.Ex_I2C.release();
+    delay(100); // Short delay to ensure I2C bus is released
+    Wire.begin(M5.Ex_I2C.getSDA(),  M5.Ex_I2C.getSCL(), 400000); // Use external I2C pins with 400kHz
     if (barometricSensor.begin(Wire) == false)
     {
         ESP_LOGE("Climb", "MS5637 sensor did not respond. Please check wiring and I2C address.");
         while (1)
             ;
     } else {
-        ESP_LOGI("Climb", "MS5637 sensor initialized successfully.");
+        ESP_LOGI("Climb", "MS5637 sensor initialized successfully with: %d, %d.", M5.Ex_I2C.getSDA(), M5.Ex_I2C.getSCL());
     }
 }
 
 void sensorReadTask(void *pvParameters) {
     (void) pvParameters; // Suppress unused parameter warning
 
-    Wire.begin(M5.Ex_I2C.getSDA(), M5.Ex_I2C.getSCL()); // Reconfigure default Wire to use M5.Ex_I2C pins
-    Wire.setClock(400000); // Set I2C frequency to 400kHz for MS5637
-
     for (;;) {
+        ESP_LOGD("sensor_task.cpp", "Starting I2C pressure read");
         float pressure = barometricSensor.getPressure();
+        ESP_LOGD("sensor_task.cpp", "Pressure read: %.2f", pressure);
         float temperature = barometricSensor.getTemperature();
-        
+        ESP_LOGD("sensor_task.cpp", "Temperature read: %.2f", temperature);
+
         if (xSemaphoreTake(xSensorMutex, (TickType_t)10) == pdTRUE) { // Attempt to take mutex with a timeout
             globalPressure = pressure;
             globalTemperature = temperature;
             xSemaphoreGive(xSensorMutex);
+            ESP_LOGD("sensor_task.cpp", "Sensor mutex released");
         } else {
             ESP_LOGE("Climb", "SensorReadTask: Could not take sensor mutex.");
         }
 
         sensor_count++;
+        // Todo change the timing.
         vTaskDelay(pdMS_TO_TICKS(200)); // Wait 0.2 second
     }
 }

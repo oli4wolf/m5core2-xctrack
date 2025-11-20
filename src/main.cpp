@@ -41,7 +41,6 @@ extern const int SENSOR_TASK_STACK_SIZE;
 extern const int GPS_TASK_STACK_SIZE;
 extern const int VARIOMETER_TASK_STACK_SIZE;
 
-
 static void ble_task(void *pvParameter)
 {
   ble_uart_init();
@@ -134,7 +133,7 @@ void setup()
   Serial.begin(115200);
   Serial.println("Starting BLE work!");
 
-  float batVoltage = M5.Power.getBatteryLevel();
+  float batVoltage = M5.Power.getBatteryVoltage();
   xSensorMutex = xSemaphoreCreateMutex(); // Initialize the sensor mutex
   xSemaphoreGive(xSensorMutex);
 
@@ -145,12 +144,14 @@ void setup()
   startupScreen();
   initializeM5Stack();
   initSensor(); // Start the sensor reading task
+    initializeSensorTask();
+  initVariometerTask(); // Start the variometer task
   //initGPSTask();        // Initialize the GPS task components
-  initVariometerTask(); // Initialize the variometer task components
+  delay(2000); // Wait for 2 seconds to ensure everything is initialized
+  initializeVariometerTask(); // Initialize the variometer task components
   // Initialize BLE
-  initializeSensorTask();
-  initializeBLE();
 
+  initializeBLE();
 }
 
 void loop()
@@ -161,9 +162,11 @@ void loop()
   lcd.setTextSize(2);
   lcd.printf("Pressure: %.1f \n", globalPressure);
   lcd.printf("Temperature: %.2f°\n", globalTemperature);
-  lcd.printf("Battery: %.2f V\n", M5.Power.getBatteryVoltage());
+  lcd.printf("Altitude: %.1f m\n", globalAltitude_m);
+  lcd.printf("V-Speed: %.2f m/s\n", globalVerticalSpeed_mps);
+  lcd.printf("Battery: %.2f V\n", M5.Power.getBatteryCurrent());
 
-  ESP_LOGI("main.cpp","Altitude: %.1f m, Vario: %.2f m/s, Battery: %.2f V", globalAltitude_m, globalVerticalSpeed_mps, M5.Power.getBatteryLevel());
+  ESP_LOGI("main.cpp","Altitude: %.1f, V-Speed: %.2f, Pressure: %.1f m, Temperature: %.2f°, Battery: %.2f V",globalAltitude_m, globalVerticalSpeed_mps, globalPressure, globalTemperature, M5.Power.getBatteryCurrent());
   // put your main code here, to run repeatedly:
   delay(2000);
 }

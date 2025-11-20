@@ -12,16 +12,16 @@ MS5637 barometricSensor;
 static uint32_t sensor_count = 0;
 
 void initSensor() {
-    // Initialize I2C for external port.A (SDA=32, SCL=33)
+    M5.Ex_I2C.release();
+    delay(100); // Short delay to ensure I2C bus is released
     Wire.begin(M5.Ex_I2C.getSDA(),  M5.Ex_I2C.getSCL(), 400000); // Use external I2C pins with 400kHz
-
     if (barometricSensor.begin(Wire) == false)
     {
         ESP_LOGE("Climb", "MS5637 sensor did not respond. Please check wiring and I2C address.");
         while (1)
             ;
     } else {
-        ESP_LOGI("Climb", "MS5637 sensor initialized successfully.");
+        ESP_LOGI("Climb", "MS5637 sensor initialized successfully with: %d, %d.", M5.Ex_I2C.getSDA(), M5.Ex_I2C.getSCL());
     }
 }
 
@@ -29,11 +29,9 @@ void sensorReadTask(void *pvParameters) {
     (void) pvParameters; // Suppress unused parameter warning
 
     for (;;) {
-        ESP_LOGD("sensor_task.cpp", "Sensor task iteration start");
         ESP_LOGD("sensor_task.cpp", "Starting I2C pressure read");
         float pressure = barometricSensor.getPressure();
         ESP_LOGD("sensor_task.cpp", "Pressure read: %.2f", pressure);
-        ESP_LOGD("sensor_task.cpp", "Starting I2C temperature read");
         float temperature = barometricSensor.getTemperature();
         ESP_LOGD("sensor_task.cpp", "Temperature read: %.2f", temperature);
 
@@ -47,8 +45,7 @@ void sensorReadTask(void *pvParameters) {
         }
 
         sensor_count++;
-        ESP_LOGD("sensor_task.cpp", "Sensor task iteration end, delaying 200ms");
         // Todo change the timing.
-        vTaskDelay(pdMS_TO_TICKS(2000)); // Wait 0.2 second
+        vTaskDelay(pdMS_TO_TICKS(200)); // Wait 0.2 second
     }
 }

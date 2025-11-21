@@ -8,7 +8,6 @@
 
 #include "ble_uart.h"        // Include the BLE UART header
 #include "sensor_task.h"     // Include the new sensor task header
-#include "gps_task.h"        // Include the new GPS task header
 #include "variometer_task.h" // Include the new variometer task header
 #include "config.h"          // Include configuration constants
 
@@ -20,86 +19,64 @@ M5GFX lcd;
 // Variometer global variables
 extern float globalAltitude_m;
 extern float globalVerticalSpeed_mps;
+float globalPressure = 0.0f;
+float globalTemperature=0.0f; // Added for global temperature
+
 extern SemaphoreHandle_t xVariometerMutex;
 SemaphoreHandle_t xSensorMutex;
 
-// GPS global variables
-double globalLatitude = 46.947597;
-double globalLongitude = 7.440434;
-double globalAltitude = 542.5; // Initial altitude set to Bern, Switzerland
-bool globalTestdata = false;   // Flag to indicate if test data is being used
-bool globalValid = false;      // Indicates if a valid GPS fix is available
-double globalDirection;
-double globalSpeed; // Added for GPS speed in km/h
-float globalPressure = 0.0f;
-float globalTemperature=0.0f; // Added for global temperature
-uint32_t globalTime;
-SemaphoreHandle_t xGPSMutex;
+// =============================================================================
+// TASK INITIALIZATION FUNCTIONS
+// =============================================================================
 
-// Task Stack Sizes
-extern const int SENSOR_TASK_STACK_SIZE;
-extern const int GPS_TASK_STACK_SIZE;
-extern const int VARIOMETER_TASK_STACK_SIZE;
-
-static void ble_task(void *pvParameter)
-{
-  ble_uart_init();
-  ESP_LOGD("main.cpp","Bluetooth LE LK8EX1 messages @ 10Hz");
-  while (1)
-  {
-    int32_t altitudeM = 0;
-    int32_t climbrateCps = 0;
-    float batVoltage = M5.Power.getBatteryVoltage();
-    ble_uart_transmit_LK8EX1(altitudeM, climbrateCps, batVoltage);
-    ESP_LOGD("main.cpp","Transmitted LK8EX1 message: Altitude=%d m, ClimbRate=%d cm/s, Battery=%.2f V", altitudeM, climbrateCps, batVoltage);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-  }
+/**
+ * @brief Initializes the BLE task for sending values over Bluetooth
+ */
+void initializeBLE() {
+    xTaskCreatePinnedToCore(
+        ble_task,     // Task function
+        "BLE Task",   // Name of the task
+        4096,         // Stack size in bytes
+        NULL,         // Task input parameter
+        1,            // Priority of the task
+        NULL,         // Task handle
+        APP_CPU_NUM   // Run on APP CPU
+    );
 }
 
-void initializeBLE()
-{
-  xTaskCreatePinnedToCore(
-      ble_task,   // Task function
-      "BLE Task", // Name of the task
-      4096,       // Stack size in bytes
-      NULL,       // Task input parameter
-      1,          // Priority of the task
-      NULL,       // Task handle
-      APP_CPU_NUM // Run on APP CPU
-  );
+/**
+ * @brief Initializes the sensor reading task for barometer data
+ */
+void initializeSensorTask() {
+    xTaskCreatePinnedToCore(
+        sensorReadTask,     // Task function
+        "Sensor Read Task", // Name of the task
+        8192,               // Stack size in bytes
+        NULL,               // Task input parameter
+        1,                  // Priority of the task
+        NULL,               // Task handle
+        APP_CPU_NUM         // Run on APP CPU
+    );
 }
 
-void initializeSensorTask()
-{
-  xTaskCreatePinnedToCore(
-      sensorReadTask,   // Task function
-      "Sensor Read Task", // Name of the task
-      8192,       // Stack size in bytes
-      NULL,       // Task input parameter
-      1,          // Priority of the task
-      NULL,       // Task handle
-      APP_CPU_NUM // Run on APP CPU
-  );
-}
-
-void initializeVariometerTask()
-{
-  xTaskCreatePinnedToCore(
-      variometerTask,   // Task function
-      "Variometer Task", // Name of the task
-      8192,       // Stack size in bytes
-      NULL,       // Task input parameter
-      1,          // Priority of the task
-      NULL,       // Task handle
-      APP_CPU_NUM // Run on APP CPU
-  );
+/**
+ * @brief Initializes the variometer task for calculating averages
+ */
+void initializeVariometerTask() {
+    xTaskCreatePinnedToCore(
+        variometerTask,     // Task function
+        "Variometer Task",  // Name of the task
+        8192,               // Stack size in bytes
+        NULL,               // Task input parameter
+        1,                  // Priority of the task
+        NULL,               // Task handle
+        APP_CPU_NUM         // Run on APP CPU
+    );
 }
 
 void initializeM5Stack()
 {
   // M5Stack Core2 Initialization
-  // GPS, Sound, Bluetooth, No Wifi, No SD at the moment.
-
   auto cfg = M5.config();
   cfg.serial_baudrate = 115200;
   cfg.internal_imu = true;  // default=true. use internal IMU.
@@ -144,14 +121,12 @@ void setup()
   startupScreen();
   initializeM5Stack();
   initSensor(); // Start the sensor reading task
-    initializeSensorTask();
+  initializeSensorTask();
   initVariometerTask(); // Start the variometer task
-  //initGPSTask();        // Initialize the GPS task components
   delay(2000); // Wait for 2 seconds to ensure everything is initialized
   initializeVariometerTask(); // Initialize the variometer task components
-  // Initialize BLE
-
   initializeBLE();
+  
 }
 
 void loop()

@@ -6,6 +6,14 @@
 #include <BLE2902.h>
 #include "config.h"
 #include <M5Unified.h>
+#include <esp_log.h>
+// External variables from main.cpp
+extern float globalAltitude_m;
+extern float globalVerticalSpeed_mps;
+extern SemaphoreHandle_t xVariometerMutex;
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/semphr.h>
 
 //https://github.com/har-in-air/ESP32C3_BLUETOOTH_AUDIO_VARIO/blob/479e52d7708047b11a5285bc00b2d51094e3c3b5/src/ble_uart.cpp
 

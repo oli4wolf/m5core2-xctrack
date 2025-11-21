@@ -3,7 +3,7 @@
 #include <cstddef> // For size_t
 
 // Configuration
-extern bool globalSoundEnabled = false; // Global variable to control sound output at runtime
+extern bool globalSoundEnabled; // Global variable to control sound output at runtime
 
 // Zoom Constants
 const int MIN_ZOOM_LEVEL = 1;

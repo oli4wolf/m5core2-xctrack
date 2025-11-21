@@ -6,6 +6,7 @@
 #include <math.h> // For pow()
 #include <vector> // For std::vector
 #include "config.h" // Include configuration constants
+#include "sound.h" // Include sound module
 
 // Declare extern global variables from main.cpp
 extern float globalPressure;
@@ -38,9 +39,8 @@ void initVariometerTask() {
     if (kalmanFilter == nullptr) {
         ESP_LOGE("Variometer", "Failed to create Kalman filter");
     }
-    M5.Speaker.begin(); // Initialize the speaker
-    M5.Speaker.setVolume(SPEAKER_DEFAULT_VOLUME); // Set a default volume (0-255)
-    ESP_LOGI("Variometer", "Variometer task initialized with Kalman filter. Speaker enabled.");
+
+    ESP_LOGI("Variometer", "Variometer task initialized with Kalman filter. Sound enabled.");
 }
 
 void variometerTask(void *pvParameters) {
@@ -87,19 +87,7 @@ void variometerTask(void *pvParameters) {
 
             // Tone generation logic
             if (globalSoundEnabled) {
-                if (filteredVerticalSpeed > altitudeChangeThreshold_mps) {
-                    // Rising tone: higher frequency, frequency increases with climb rate
-                    int frequency = RISING_TONE_BASE_FREQ_HZ + (int)(filteredVerticalSpeed * RISING_TONE_MULTIPLIER_HZ_PER_MPS);
-                    M5.Speaker.tone(frequency, TONE_DURATION_MS); // Short tone
-                } else if (filteredVerticalSpeed < -altitudeChangeThreshold_mps) {
-                    // Sinking tone: lower frequency, frequency decreases with sink rate
-                    int frequency = SINKING_TONE_BASE_FREQ_HZ - (int)(fabs(filteredVerticalSpeed) * SINKING_TONE_MULTIPLIER_HZ_PER_MPS);
-                    if (frequency < MIN_TONE_FREQ_HZ) frequency = MIN_TONE_FREQ_HZ; // Minimum frequency
-                    M5.Speaker.tone(frequency, TONE_DURATION_MS); // Short tone
-                } else {
-                    // Stable or minor changes, no tone
-                    M5.Speaker.stop();
-                }
+                playTone(filteredVerticalSpeed);
             } else {
                 M5.Speaker.stop(); // Ensure speaker is off if sound is disabled
             }

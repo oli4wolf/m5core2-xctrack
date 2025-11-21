@@ -9,6 +9,7 @@
 #include "ble_uart.h"        // Include the BLE UART header
 #include "sensor_task.h"     // Include the new sensor task header
 #include "variometer_task.h" // Include the new variometer task header
+#include "sound.h"         // Include sound management header
 #include "config.h"          // Include configuration constants
 
 // BLE Server example
@@ -21,6 +22,7 @@ extern float globalAltitude_m;
 extern float globalVerticalSpeed_mps;
 float globalPressure = 0.0f;
 float globalTemperature=0.0f; // Added for global temperature
+bool globalSoundEnabled = false; // Global variable to control sound output at runtime
 
 extern SemaphoreHandle_t xVariometerMutex;
 SemaphoreHandle_t xSensorMutex;
@@ -120,6 +122,7 @@ void setup()
 
   startupScreen();
   initializeM5Stack();
+  initSound(); // Initialize the sound module
   initSensor(); // Start the sensor reading task
   initializeSensorTask();
   initVariometerTask(); // Start the variometer task

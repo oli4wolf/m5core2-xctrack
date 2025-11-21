@@ -26,7 +26,7 @@ SemaphoreHandle_t xVariometerMutex;
 // P0 is now defined in config.h as STANDARD_SEA_LEVEL_PRESSURE_HPA
 // Function to convert pressure (hPa) to altitude (meters)
 float pressureToAltitude(float pressure_hPa) {
-    return ALTITUDE_CONSTANT_A * (1.0 - pow(pressure_hPa / STANDARD_SEA_LEVEL_PRESSURE_HPA, 1.0 / ALTITUDE_CONSTANT_B));
+    return ALTITUDE_CONSTANT_A * (pow(STANDARD_SEA_LEVEL_PRESSURE_HPA / pressure_hPa, 1.0f / ALTITUDE_CONSTANT_B) - 1.0f);
 }
 
 void initVariometerTask() {
@@ -55,7 +55,7 @@ void variometerTask(void *pvParameters) {
     if (xSemaphoreTake(xSensorMutex, portMAX_DELAY) == pdTRUE) {
         float initialPressure = globalPressure;
         xSemaphoreGive(xSensorMutex);
-        float initialAltitude = pressureToAltitude(initialPressure);
+        float initialAltitude = pressureToAltitude(initialPressure); // Already in hPa
         kalmanFilter->setInitialState(initialAltitude, 0.0f); // Initial vertical speed 0
         previousAltitude = initialAltitude; // For tone logic
     }
@@ -70,6 +70,7 @@ void variometerTask(void *pvParameters) {
             }
 
             float rawAltitude = pressureToAltitude(currentPressure);
+            ESP_LOGI("Variometer", "Raw pressure: %.2f Pa, Raw altitude: %.2f m", currentPressure, rawAltitude);
 
             // Kalman filter prediction and update
             kalmanFilter->predict();
@@ -80,8 +81,8 @@ void variometerTask(void *pvParameters) {
             float filteredVerticalSpeed = kalmanFilter->getVerticalSpeed();
 
             if (xSemaphoreTake(xVariometerMutex, portMAX_DELAY) == pdTRUE) {
-                globalAltitude_m = filteredAltitude;
-                globalVerticalSpeed_mps = filteredVerticalSpeed;
+                globalAltitude_m = filteredAltitude; // Already in meters
+                globalVerticalSpeed_mps = filteredVerticalSpeed; // Already in m/s
                 xSemaphoreGive(xVariometerMutex);
             }
 

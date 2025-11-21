@@ -41,6 +41,7 @@ void sensorReadTask(void *pvParameters) {
         float temperature = barometricSensor.getTemperature();
         ESP_LOGD("sensor_task.cpp", "Pressure: %.2f, Temperature read: %.2f", pressure, temperature);
 
+            globalPressure = pressure;
         if (xSemaphoreTake(xSensorMutex, (TickType_t)10) == pdTRUE) { // Attempt to take mutex with a timeout
             globalTemperature = temperature;
             xSemaphoreGive(xSensorMutex);

@@ -2,15 +2,8 @@
 
 #include <cstddef> // For size_t
 
-// Device Constants M5Stack Tab5
-const int TILE_SIZE = 256; // Standard size for map tiles (e.g., Swisstopo, OpenStreetMap)
-const int SCREEN_WIDTH = 720; // Width of the M5Stack screen
-const int SCREEN_HEIGHT = 1280; // Height of the M5Stack screen
-
 // Configuration
-const bool SPEAKER_ENABLED = false; // Set to false to disable speaker functionality
-const bool USE_TESTDATA = true; // Set to true to use test GPS data when no valid GPS fix is available
-extern bool globalSoundEnabled; // Global variable to control sound output at runtime
+extern bool globalSoundEnabled = false; // Global variable to control sound output at runtime
 
 // Zoom Constants
 const int MIN_ZOOM_LEVEL = 1;
@@ -44,8 +37,10 @@ const int MIN_TONE_FREQ_HZ = 100;
 // Todo: Change
 const int VARIOMETER_TASK_DELAY_MS = 500;
 
-// Altitude Filter
-const int ALTITUDE_FILTER_SIZE = 10; // Number of samples for moving average filter
+// Kalman Filter Constants
+const float KALMAN_DT = VARIOMETER_UPDATE_INTERVAL_MS / 1000.0f; // Time step in seconds
+const float KALMAN_PROCESS_NOISE = 0.01f; // Process noise variance
+const float KALMAN_MEASUREMENT_NOISE = 0.04f; // Measurement noise variance (0.2m ^2)
 
 // GPS Constants
 const int GPS_TASK_DELAY_MS = 1000;

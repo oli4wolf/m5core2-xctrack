@@ -69,19 +69,6 @@
 **Alternative Flows**:
 - A1: Sensor init failure - System halts with error message
 
-### UC-6: GPS Data Fallback (Future)
-**Actor**: System
-**Preconditions**: GPS configured but no fix available
-**Main Flow**:
-1. GPS task attempts to get valid fix
-2. Timeout after 10 seconds without fix
-3. System switches to test data mode
-4. Uses predefined coordinates (Bern, Switzerland)
-5. Continues normal operation with test data
-**Postconditions**: System operational with fallback data
-**Alternative Flows**:
-- A1: GPS fix acquired - Uses real GPS data
-
 ### UC-7: Real-time Data Display
 **Actor**: Paraglider pilot
 **Preconditions**: System operational

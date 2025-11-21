@@ -111,25 +111,29 @@ void setup()
 {
   Serial.begin(115200);
   Serial.println("Starting BLE work!");
+  ESP_LOGI("main.cpp", "Serial initialized");
 
   float batVoltage = M5.Power.getBatteryVoltage();
+  ESP_LOGI("main.cpp", "Battery voltage: %.2f", batVoltage);
   xSensorMutex = xSemaphoreCreateMutex(); // Initialize the sensor mutex
   xSemaphoreGive(xSensorMutex);
+  ESP_LOGI("main.cpp", "Sensor mutex created");
 
   // Suppress debug logs for BLE-related tags (adjust tags as needed based on library output)
   esp_log_level_set("BLE*", ESP_LOG_WARN);  // Example: Suppress for BLE components
   esp_log_level_set("bt", ESP_LOG_WARN);
 
-  startupScreen();
   initializeM5Stack();
+  startupScreen();
   initSound(); // Initialize the sound module
   initSensor(); // Start the sensor reading task
   initializeSensorTask();
   initVariometerTask(); // Start the variometer task
   delay(2000); // Wait for 2 seconds to ensure everything is initialized
+
   initializeVariometerTask(); // Initialize the variometer task components
   initializeBLE();
-  
+
 }
 
 void loop()

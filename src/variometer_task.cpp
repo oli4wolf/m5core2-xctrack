@@ -70,7 +70,6 @@ void variometerTask(void *pvParameters) {
             }
 
             float rawAltitude = pressureToAltitude(currentPressure);
-            ESP_LOGI("Variometer", "Raw pressure: %.2f Pa, Raw altitude: %.2f m", currentPressure, rawAltitude);
 
             // Kalman filter prediction and update
             kalmanFilter->predict();

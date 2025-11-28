@@ -28,7 +28,6 @@ This is a non-commercial hobby project to create a portable variometer device fo
 - **M5Unified**: https://github.com/M5Stack/M5Unified.git
 - **M5GFX**: https://github.com/M5Stack/M5GFX.git
 - **SparkFun MS5637**: sparkfun/SparkFun MS5637 Barometric Pressure Library@^1.0.2
-- **TinyGPSPlus**: mikalhart/TinyGPSPlus@^1.1.0
 
 ## Build Configuration
 - Platform: espressif32

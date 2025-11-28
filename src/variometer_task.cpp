@@ -17,6 +17,9 @@ extern bool globalSoundEnabled; // Declare global sound enable flag
 // Kalman filter instance
 static KalmanFilter* kalmanFilter = nullptr;
 
+// Moving average buffer for vertical speed
+static std::vector<float> verticalSpeedHistory;
+
 // Global variables for variometer
 float globalAltitude_m = 0.0; // Current altitude in meters
 float globalVerticalSpeed_mps = 0.0; // Vertical speed in meters per second
@@ -40,7 +43,7 @@ void initVariometerTask() {
         ESP_LOGE("Variometer", "Failed to create Kalman filter");
     }
 
-    ESP_LOGI("Variometer", "Variometer task initialized with Kalman filter. Sound enabled.");
+    ESP_LOGI("Variometer", "Variometer task initialized with Kalman filter and moving average filter. Sound enabled.");
 }
 
 void variometerTask(void *pvParameters) {
@@ -77,17 +80,31 @@ void variometerTask(void *pvParameters) {
 
             // Get filtered values
             float filteredAltitude = kalmanFilter->getAltitude();
-            float filteredVerticalSpeed = kalmanFilter->getVerticalSpeed();
+
+            // Calculate raw vertical speed and apply moving average
+            float dt_seconds = updateIntervalMs / 1000.0f;
+            float rawVerticalSpeed = (filteredAltitude - previousAltitude) / dt_seconds;
+            verticalSpeedHistory.push_back(rawVerticalSpeed);
+            if (verticalSpeedHistory.size() > MOVING_AVERAGE_WINDOW_SIZE) {
+                verticalSpeedHistory.erase(verticalSpeedHistory.begin());
+            }
+            float avgVerticalSpeed = 0.0f;
+            if (!verticalSpeedHistory.empty()) {
+                for (float v : verticalSpeedHistory) {
+                    avgVerticalSpeed += v;
+                }
+                avgVerticalSpeed /= verticalSpeedHistory.size();
+            }
 
             if (xSemaphoreTake(xVariometerMutex, portMAX_DELAY) == pdTRUE) {
                 globalAltitude_m = filteredAltitude; // Already in meters
-                globalVerticalSpeed_mps = filteredVerticalSpeed; // Already in m/s
+                globalVerticalSpeed_mps = avgVerticalSpeed; // Moving averaged vertical speed in m/s
                 xSemaphoreGive(xVariometerMutex);
             }
 
             // Tone generation logic
             if (globalSoundEnabled) {
-                playTone(filteredVerticalSpeed);
+                playTone(avgVerticalSpeed);
             } else {
                 M5.Speaker.stop(); // Ensure speaker is off if sound is disabled
             }

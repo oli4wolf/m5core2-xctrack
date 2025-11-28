@@ -12,10 +12,10 @@
 
 ## Variometer Component
 - **Purpose**: Calculates vertical speed from pressure changes using barometric altitude
-- **Algorithm**: Moving average filter (10 samples) on altitude data, pressure to altitude conversion using standard atmosphere model
+- **Algorithm**: Kalman filter for altitude smoothing, moving average filter (10 samples) on vertical speed, pressure to altitude conversion using standard atmosphere model
 - **Update Rate**: 500ms (configurable via VARIOMETER_UPDATE_INTERVAL_MS)
-- **Audio Output**: Tone generation based on vertical speed (disabled by default via SPEAKER_ENABLED=false)
-- **Tone Logic**: Rising: 1000Hz base + 50Hz/m/s, Sinking: 500Hz base - 50Hz/m/s, min 100Hz, duration 50ms
+- **Audio Output**: Tone generation based on vertical speed (enabled by default via globalSoundEnabled=true)
+- **Tone Logic**: Rising: 1000Hz base + 50Hz/m/s, Sinking: 500Hz base - 50Hz/m/s, min 100Hz, max 2000Hz, duration 50ms
 - **Constraints**: Altitude change threshold of 0.5 m/s, frequency limits (100-2000Hz), data protected by mutex (xVariometerMutex)
 
 ## BLE Component (LK8EX1 Protocol)

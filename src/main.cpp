@@ -22,7 +22,7 @@ extern float globalAltitude_m;
 extern float globalVerticalSpeed_mps;
 float globalPressure = 0.0f;
 float globalTemperature=0.0f; // Added for global temperature
-bool globalSoundEnabled = false; // Global variable to control sound output at runtime
+bool globalSoundEnabled = true; // Global variable to control sound output at runtime
 
 extern SemaphoreHandle_t xVariometerMutex;
 SemaphoreHandle_t xSensorMutex;
@@ -138,17 +138,36 @@ void setup()
 
 void loop()
 {
+  float pressure = 0.0f;
+  float temperature = 0.0f;
+  float altitude = 0.0f;
+  float verticalSpeed = 0.0f;
+
+  // Read sensor data with mutex protection
+  if (xSemaphoreTake(xSensorMutex, portMAX_DELAY) == pdTRUE) {
+    pressure = globalPressure;
+    temperature = globalTemperature;
+    xSemaphoreGive(xSensorMutex);
+  }
+
+  // Read variometer data with mutex protection
+  if (xSemaphoreTake(xVariometerMutex, portMAX_DELAY) == pdTRUE) {
+    altitude = globalAltitude_m;
+    verticalSpeed = globalVerticalSpeed_mps;
+    xSemaphoreGive(xVariometerMutex);
+  }
+
   lcd.fillScreen(TFT_BLACK);
   lcd.setCursor(0, 0);
   lcd.setTextColor(TFT_WHITE, TFT_BLACK);
   lcd.setTextSize(2);
-  lcd.printf("Pressure: %.1f \n", globalPressure);
-  lcd.printf("Temperature: %.2f°\n", globalTemperature);
-  lcd.printf("Altitude: %.1f m\n", globalAltitude_m);
-  lcd.printf("V-Speed: %.2f m/s\n", globalVerticalSpeed_mps);
-  lcd.printf("Battery: %.2f V\n", M5.Power.getBatteryCurrent());
+  lcd.printf("Pressure: %.1f \n", pressure);
+  lcd.printf("Temperature: %.2f°\n", temperature);
+  lcd.printf("Altitude: %.1f m\n", altitude);
+  lcd.printf("V-Speed: %.2f m/s\n", verticalSpeed);
+  lcd.printf("Battery: %.2f V\n", M5.Power.getBatteryVoltage());
 
-  ESP_LOGI("main.cpp","Altitude: %.1f, V-Speed: %.2f, Pressure: %.1f m, Temperature: %.2f°, Battery: %.2f V",globalAltitude_m, globalVerticalSpeed_mps, globalPressure, globalTemperature, M5.Power.getBatteryCurrent());
+  ESP_LOGI("main.cpp","Altitude: %.1f, V-Speed: %.2f, Pressure: %.1f m, Temperature: %.2f°, Battery: %.2f V", altitude, verticalSpeed, pressure, temperature, M5.Power.getBatteryVoltage());
   // put your main code here, to run repeatedly:
   delay(2000);
 }

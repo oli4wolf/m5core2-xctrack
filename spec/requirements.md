@@ -153,7 +153,7 @@
 - **BLE UART**: Custom service UUID 6E400001-B5A3-F393-E0A9-E50E24DCCA9E
 - **LK8EX1 Protocol**: NMEA-style sentences with XOR checksum
 - **XCTrack**: BLE UART receiver, expects 10Hz data stream
-- **Libraries**: M5Unified, M5GFX, SparkFun MS5637, TinyGPSPlus
+- **Libraries**: M5Unified, M5GFX, SparkFun MS5637
 
 ### IR-3: User Interfaces
 - **Visual**: LCD screen with real-time data display

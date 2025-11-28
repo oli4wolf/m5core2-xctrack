@@ -156,7 +156,6 @@
 
 ### Hardware Test Setup
 - M5Stack Core2 with MS5637 sensor
-- GPS module (when available)
 - BLE-capable device running XCTrack
 - Power supply with current monitoring
 - Temperature chamber for environmental testing

@@ -12,7 +12,6 @@
 extern float globalPressure;
 extern float globalTemperature; // Added for global temperature
 extern SemaphoreHandle_t xSensorMutex;
-extern bool globalSoundEnabled; // Declare global sound enable flag
 
 // Kalman filter instance
 static KalmanFilter* kalmanFilter = nullptr;

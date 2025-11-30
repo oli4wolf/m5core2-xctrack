@@ -22,7 +22,7 @@ extern float globalAltitude_m;
 extern float globalVerticalSpeed_mps;
 float globalPressure = 0.0f;
 float globalTemperature=0.0f; // Added for global temperature
-bool globalSoundEnabled = true; // Global variable to control sound output at runtime
+bool globalSoundEnabled = DEFAULT_SOUND_ENABLED; // Global variable to control sound output at runtime
 
 extern SemaphoreHandle_t xVariometerMutex;
 SemaphoreHandle_t xSensorMutex;

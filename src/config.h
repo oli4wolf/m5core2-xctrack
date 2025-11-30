@@ -3,6 +3,7 @@
 #include <cstddef> // For size_t
 
 // Configuration
+const bool DEFAULT_SOUND_ENABLED = true; // Default sound setting
 extern bool globalSoundEnabled; // Global variable to control sound output at runtime
 
 // Zoom Constants

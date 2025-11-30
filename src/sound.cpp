@@ -2,9 +2,6 @@
 #include "config.h"
 #include <math.h> // For fabs()
 
-// Global sound enable flag (declared in main.cpp)
-extern bool globalSoundEnabled;
-
 // Initialize the speaker
 void initSound() {
     M5.Speaker.begin();

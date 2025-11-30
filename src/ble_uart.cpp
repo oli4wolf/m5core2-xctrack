@@ -6,6 +6,14 @@
 #include <BLE2902.h>
 #include "config.h"
 #include <M5Unified.h>
+#include <esp_log.h>
+// External variables from main.cpp
+extern float globalAltitude_m;
+extern float globalVerticalSpeed_mps;
+extern SemaphoreHandle_t xVariometerMutex;
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/semphr.h>
 
 //https://github.com/har-in-air/ESP32C3_BLUETOOTH_AUDIO_VARIO/blob/479e52d7708047b11a5285bc00b2d51094e3c3b5/src/ble_uart.cpp
 
@@ -29,6 +37,21 @@ class MyServerCallbacks : public BLEServerCallbacks {
 };
 
 static uint8_t ble_uart_nmea_checksum(const char *szNMEA);
+
+void ble_task(void *pvParameter)
+{
+  ble_uart_init();
+  ESP_LOGD("main.cpp","Bluetooth LE LK8EX1 messages @ 10Hz");
+  while (1)
+  {
+    int32_t altitudeM = 0;
+    int32_t climbrateCps = 0;
+    float batVoltage = M5.Power.getBatteryVoltage();
+    ble_uart_transmit_LK8EX1(altitudeM, climbrateCps, batVoltage);
+    ESP_LOGD("main.cpp","Transmitted LK8EX1 message: Altitude=%d m, ClimbRate=%d cm/s, Battery=%.2f V", altitudeM, climbrateCps, batVoltage);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+  }
+}
 
 void ble_uart_init() {
 	ESP_LOGD("ble_uart.cpp", "Starting BLE initialization");

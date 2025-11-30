@@ -42,3 +42,31 @@ const int VARIOMETER_TASK_DELAY_MS = 250;
 const float KALMAN_DT = VARIOMETER_UPDATE_INTERVAL_MS / 1000.0f; // Time step in seconds
 const float KALMAN_PROCESS_NOISE = 0.01f; // Process noise variance
 const float KALMAN_MEASUREMENT_NOISE = 0.04f; // Measurement noise variance (0.2m ^2)
+
+// Display Layout Constants
+const int DISPLAY_UPDATE_INTERVAL_MS = 500; // 2 Hz update rate (faster than current 1Hz)
+const int HEADER_HEIGHT = 40;
+const int FOOTER_HEIGHT = 30;
+const int MAIN_DISPLAY_HEIGHT = 170;
+const int DISPLAY_WIDTH = 320;
+const int DISPLAY_HEIGHT = 240;
+
+// Vertical Speed Color Thresholds
+const float VSPEED_CLIMB_THRESHOLD = 0.3;   // m/s - Green when above
+const float VSPEED_SINK_THRESHOLD = -0.3;   // m/s - Red when below
+// Between these values: Yellow (neutral)
+
+// Display Colors (RGB565 format)
+const uint16_t HEADER_BG_COLOR = 0x1A0E;    // Dark blue-gray
+const uint16_t FOOTER_BG_COLOR = 0x2A2E;    // Dark gray
+const uint16_t MUTED_GRAY_COLOR = 0x8410;   // Gray for muted status
+
+// Update Thresholds (prevent flicker from small changes)
+const float ALTITUDE_UPDATE_THRESHOLD = 1.0;  // meters
+const float BATTERY_UPDATE_THRESHOLD = 0.1;   // volts
+const float VSPEED_UPDATE_THRESHOLD = 0.05;   // m/s
+
+// Text Sizes
+const int HEADER_TEXT_SIZE = 2;
+const int MAIN_TEXT_SIZE = 8;  // Very large for vertical speed
+const int FOOTER_TEXT_SIZE = 2;

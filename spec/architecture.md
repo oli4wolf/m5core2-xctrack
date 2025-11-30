@@ -1,70 +1,56 @@
 # System Architecture
 
 ## Overview
-The M5Core2 XCTrack variometer is a real-time embedded system running on ESP32-based M5Stack Core2 hardware. It implements a multi-task FreeRTOS architecture with Arduino framework integration for sensor data acquisition, processing, and wireless transmission.
+Real-time embedded system on ESP32-based M5Stack Core2 using FreeRTOS multi-task architecture for sensor acquisition, processing, and wireless transmission.
 
 ## Hardware Architecture
-- **Microcontroller**: ESP32 (dual-core, 240MHz)
-- **Sensors**: MS5637 barometric pressure/temperature sensor (I2C)
-- **Communication**: BLE UART for XCTrack integration
+- **MCU**: ESP32 (dual-core, 240MHz)
+- **Sensor**: MS5637 barometric (I2C)
 - **Display**: 320x240 TFT LCD
-- **Audio**: Built-in speaker for variometer tones
-- **Power**: Battery monitoring via M5Unified
+- **Audio**: Built-in speaker
+- **Communication**: BLE UART
+- **Power**: Battery with monitoring
 
-## Software Architecture
-
-### Task Structure
-The system uses FreeRTOS tasks running on separate cores for concurrent processing:
+## Task Architecture
 
 ```mermaid
 graph TD
-    A[Main Task] --> B[BLE Task]
-    A --> C[Sensor Task]
-    A --> D[Variometer Task]
-    A --> F[Display Loop]
-
-    B --> G[BLE UART Transmission<br/>10Hz LK8EX1]
-    C --> H[Pressure/Temperature<br/>5Hz I2C]
-    D --> I[Vertical Speed Calculation<br/>2Hz Moving Average]
-    F --> J[LCD Update<br/>0.5Hz]
+    A[Main Task<br/>Core 1] --> B[BLE Task<br/>10Hz]
+    A --> C[Sensor Task<br/>5Hz]
+    A --> D[Variometer Task<br/>2Hz]
+    A --> F[Display Loop<br/>0.5Hz]
 ```
 
-### Data Flow
+## Data Flow
+
 ```mermaid
 graph LR
-    MS5637[MS5637 Sensor] -->|Pressure/Temp| SensorTask[Sensor Task]
-    SensorTask -->|Global Variables| VariometerTask[Variometer Task]
-    VariometerTask -->|Altitude/VSpeed| BLETask[BLE Task]
-    VariometerTask -->|Altitude/VSpeed| Display[LCD Display]
-    BLETask -->|LK8EX1 Protocol| XCTrack[XCTrack App]
-    VariometerTask -->|Audio Feedback| Speaker[M5 Speaker]
+    MS5637[MS5637] -->|I2C| Sensor[Sensor Task]
+    Sensor -->|Mutex| Vario[Variometer Task]
+    Vario -->|Mutex| BLE[BLE Task]
+    Vario --> Display[LCD]
+    Vario -.->|Optional| Audio[Speaker]
+    BLE -->|BLE UART| XCTrack[XCTrack App]
 ```
 
-### Memory Management
-- **Global Variables**: Shared data protected by mutexes (xSensorMutex, xVariometerMutex)
-- **Task Stacks**: Configured per task (Sensor: 8192, Variometer: 8192, BLE: 4096)
-- **Buffers**: Altitude filter uses std::vector with 10 samples
+## Synchronization
+- **Mutexes**: xSensorMutex, xVariometerMutex
+- **Task Stacks**: Sensor/Variometer: 8KB, BLE: 4KB
+- **Shared Data**: Altitude, V-speed, pressure, temperature
 
-### Communication Protocols
-- **I2C**: 400kHz for MS5637 sensor
-- **BLE**: UART service with custom UUIDs, MTU 46 bytes
-- **NMEA**: LK8EX1 sentence format with XOR checksum
-
-### Initialization Sequence
+## Initialization Sequence
 1. M5Stack hardware initialization
 2. Sensor I2C setup and validation
-3. Variometer buffer initialization
-4. BLE service setup and advertising
-5. Task creation and startup screen display
+3. Variometer filter initialization
+4. BLE service advertising
+5. Task creation and startup display
 
-### Error Handling
-- Sensor initialization failure: Infinite loop with error log
-- Mutex timeouts: Logged errors, continue operation
-- BLE disconnect: Automatic advertising restart
+## Error Handling
+- **Sensor init failure**: Log error and halt
+- **Mutex timeout**: Log error and continue
+- **BLE disconnect**: Auto-restart advertising
 
-### Configuration
-All constants defined in `config.h` for easy tuning:
-- Update rates and thresholds
-- Audio parameters
-- Hardware pin assignments
-- Task stack sizes
+## Configuration
+All constants defined in [`config.h`](../src/config.h) for easy tuning.
+
+See [`component_specs.md`](component_specs.md) for implementation details.

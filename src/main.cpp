@@ -87,6 +87,8 @@ void initializeVariometerTask() {
 
 void initializeM5Stack()
 {
+  ESP_LOGI("Display", "DIAG: Starting M5Stack initialization");
+  
   // M5Stack Core2 Initialization
   auto cfg = M5.config();
   cfg.serial_baudrate = 115200;
@@ -97,23 +99,44 @@ void initializeM5Stack()
   cfg.external_imu = false; // default=false. use Unit Accel & Gyro.
   cfg.external_rtc = false; // default=false. use Unit RTC.
 
+  ESP_LOGI("Display", "DIAG: Calling M5.begin()");
   M5.begin(cfg);
+  ESP_LOGI("Display", "DIAG: M5.begin() completed");
+  
+  ESP_LOGI("Display", "DIAG: Calling lcd.init()");
   lcd.init();
+  ESP_LOGI("Display", "DIAG: lcd.init() completed, width=%d, height=%d", lcd.width(), lcd.height());
+  
+  // CRITICAL: Explicitly enable and set display brightness
+  ESP_LOGI("Display", "DIAG: Setting display brightness to maximum");
+  lcd.setBrightness(255);  // Set to maximum brightness
+  lcd.wakeup();  // Ensure display is awake
+  ESP_LOGI("Display", "DIAG: Brightness set to 255, display woken up");
+  
   M5.Ex_I2C.release();
+  ESP_LOGI("Display", "DIAG: M5Stack initialization complete");
 }
 
 void startupScreen()
 {
+  ESP_LOGI("Display", "DIAG: Starting startupScreen");
+  ESP_LOGI("Display", "DIAG: Calling lcd.fillScreen(TFT_BLACK)");
   lcd.fillScreen(TFT_BLACK);
+  ESP_LOGI("Display", "DIAG: fillScreen completed");
+  
   lcd.setCursor(0, 0);
   lcd.setTextColor(TFT_WHITE, TFT_BLACK);
   lcd.setTextSize(1);
+  ESP_LOGI("Display", "DIAG: Drawing startup text");
   lcd.println("M5Stack Core2 XCTrack");
   lcd.println("v0.1");
   lcd.println("by @oli4wolf on github");
   lcd.println("This is a non-commercial project.");
-  lcd.printf("Battery Level: %.2f V\n", M5.Power.getBatteryLevel());
+  float batteryLevel = M5.Power.getBatteryLevel();
+  lcd.printf("Battery Level: %.2f V\n", batteryLevel);
+  ESP_LOGI("Display", "DIAG: Startup screen drawn, battery=%.2fV, waiting 5s", batteryLevel);
   delay(5000);
+  ESP_LOGI("Display", "DIAG: startupScreen complete");
 }
 
 void setup()
@@ -170,7 +193,9 @@ void loop()
     float temperature = 0.0f;
     float altitude = 0.0f;
     float verticalSpeed = 0.0f;
-    float battery = M5.Power.getBatteryVoltage();
+    // Convert millivolts to volts and ignore zero readings
+    float batteryRaw = M5.Power.getBatteryVoltage();
+    float battery = (batteryRaw > 0) ? (batteryRaw / 1000.0f) : prevBattery;
     
     // Read sensor data with mutex protection
     if (xSemaphoreTake(xSensorMutex, portMAX_DELAY) == pdTRUE) {
@@ -216,21 +241,33 @@ void loop()
 // =============================================================================
 
 void initializeDisplay() {
+  ESP_LOGI("Display", "DIAG: Starting initializeDisplay");
+  
+  // Ensure display is on and bright
+  lcd.wakeup();
+  lcd.setBrightness(255);
+  ESP_LOGI("Display", "DIAG: Display woken up and brightness set to max");
+  
+  ESP_LOGI("Display", "DIAG: Clearing screen to black");
   lcd.fillScreen(TFT_BLACK);
   
+  ESP_LOGI("Display", "DIAG: Drawing header background");
   // Draw static header background
   lcd.fillRect(0, 0, DISPLAY_WIDTH, HEADER_HEIGHT, HEADER_BG_COLOR);
   
+  ESP_LOGI("Display", "DIAG: Drawing footer background");
   // Draw static footer background
   lcd.fillRect(0, DISPLAY_HEIGHT - FOOTER_HEIGHT, DISPLAY_WIDTH, FOOTER_HEIGHT, FOOTER_BG_COLOR);
   
+  ESP_LOGI("Display", "DIAG: Drawing initial footer");
   // Initial footer with sound status
   drawFooter(globalSoundEnabled);
   
-  ESP_LOGI("Display", "Display initialized with new layout");
+  ESP_LOGI("Display", "DIAG: Display initialized with new layout");
 }
 
 void drawHeader(float battery, float altitude) {
+  ESP_LOGI("Display", "DIAG: drawHeader called - battery=%.1fV, altitude=%.1fm", battery, altitude);
   // Clear header area (maintains background color)
   lcd.fillRect(0, 0, DISPLAY_WIDTH, HEADER_HEIGHT, HEADER_BG_COLOR);
   
@@ -251,6 +288,7 @@ void drawHeader(float battery, float altitude) {
 }
 
 void drawMainDisplay(float vSpeed) {
+  ESP_LOGI("Display", "DIAG: drawMainDisplay called - vSpeed=%.2f m/s", vSpeed);
   // Determine color based on vertical speed
   uint16_t color;
   if (vSpeed > VSPEED_CLIMB_THRESHOLD) {
@@ -285,6 +323,7 @@ void drawMainDisplay(float vSpeed) {
   // Draw vertical speed
   lcd.setCursor(x, y);
   lcd.print(vSpeedStr);
+  ESP_LOGI("Display", "DIAG: Main display updated");
 }
 
 void drawFooter(bool soundEnabled) {

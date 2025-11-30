@@ -68,5 +68,5 @@ const float VSPEED_UPDATE_THRESHOLD = 0.05;   // m/s
 
 // Text Sizes
 const int HEADER_TEXT_SIZE = 2;
-const int MAIN_TEXT_SIZE = 8;  // Very large for vertical speed
+const int MAIN_TEXT_SIZE = 6;  // Very large for vertical speed
 const int FOOTER_TEXT_SIZE = 2;

@@ -10,13 +10,14 @@ extern SemaphoreHandle_t xSensorMutex;
 
 // Declare pressure readings vector and mutex
 std::vector<float> pressureReadings;
-SemaphoreHandle_t xPressureMutex= xSemaphoreCreateMutex();
+SemaphoreHandle_t xPressureMutex = NULL;
 
 MS5637 barometricSensor;
 static uint32_t sensor_count = 0;
 
 void initSensor() {
      M5.Ex_I2C.release();
+     
      delay(100); // Short delay to ensure I2C bus is released
      Wire.begin(M5.Ex_I2C.getSDA(),  M5.Ex_I2C.getSCL(), 400000); // Use external I2C pins with 400kHz
      if (barometricSensor.begin(Wire) == false)
@@ -27,8 +28,8 @@ void initSensor() {
      } else {
          ESP_LOGI("Climb", "MS5637 sensor initialized successfully with: %d, %d.", M5.Ex_I2C.getSDA(), M5.Ex_I2C.getSCL());
      }
-
      // Create mutex for pressure readings vector
+     xPressureMutex = xSemaphoreCreateMutex();
      xSemaphoreGive(xPressureMutex);
 }
 
@@ -36,6 +37,10 @@ void sensorReadTask(void *pvParameters) {
     (void) pvParameters; // Suppress unused parameter warning
     
     bool sensorAvailable = barometricSensor.begin(Wire);
+    uint32_t retryAttempts = 0;
+    uint32_t consecutiveFailures = 0;
+
+    ESP_LOGI("sensor_task.cpp", "DIAG: Initial sensor detection attempt: %s", sensorAvailable ? "SUCCESS" : "FAILED");
 
     for (;;) {
         float pressure = 0.0f;
@@ -46,11 +51,15 @@ void sensorReadTask(void *pvParameters) {
             pressure = barometricSensor.getPressure();
             temperature = barometricSensor.getTemperature();
             ESP_LOGD("sensor_task.cpp", "Pressure: %.2f, Temperature read: %.2f", pressure, temperature);
+            consecutiveFailures = 0;  // Reset failure counter on success
         } else {
             // Sensor not available - provide safe dummy values
             pressure = 1013.25f;  // Standard sea level pressure
             temperature = 20.0f;  // Room temperature
-            ESP_LOGW("sensor_task.cpp", "Sensor unavailable, using dummy values");
+            consecutiveFailures++;
+            ESP_LOGW("sensor_task.cpp", "DIAG: Sensor unavailable (failure #%d), using dummy values", consecutiveFailures);
+            ESP_LOGI("sensor_task.cpp", "DIAG: sensorAvailable flag is currently: %s", sensorAvailable ? "true" : "false");
+            ESP_LOGE("sensor_task.cpp", "DIAG: NO RETRY LOGIC - sensor will never be rechecked!");
         }
 
         globalPressure = pressure;

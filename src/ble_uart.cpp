@@ -40,15 +40,32 @@ static uint8_t ble_uart_nmea_checksum(const char *szNMEA);
 
 void ble_task(void *pvParameter)
 {
+	  (void) pvParameter; // Suppress unused parameter warning
+	 int32_t altitudeM = 0;
+	 int32_t climbrateCps = 0;
+	 static float prevBatVoltage = 3.7f; // Default battery voltage for fallback
+	 
   ble_uart_init();
   ESP_LOGD("main.cpp","Bluetooth LE LK8EX1 messages @ 10Hz");
   while (1)
   {
-    int32_t altitudeM = 0;
-    int32_t climbrateCps = 0;
-    float batVoltage = M5.Power.getBatteryVoltage();
-    ble_uart_transmit_LK8EX1(altitudeM, climbrateCps, batVoltage);
-    ESP_LOGD("main.cpp","Transmitted LK8EX1 message: Altitude=%d m, ClimbRate=%d cm/s, Battery=%.2f V", altitudeM, climbrateCps, batVoltage);
+	if (xSemaphoreTake(xVariometerMutex, (TickType_t)10) == pdTRUE) {
+	   	altitudeM = static_cast<int32_t>(globalAltitude_m);
+	   	climbrateCps = static_cast<int32_t>(globalVerticalSpeed_mps * 100);
+		xSemaphoreGive(xVariometerMutex);
+	}
+	
+	// Read battery voltage and convert from millivolts to volts
+	float batVoltageRaw = M5.Power.getBatteryVoltage();
+	float batVoltage = (batVoltageRaw > 0) ? (batVoltageRaw / 1000.0f) : prevBatVoltage;
+	
+	// Update previous voltage if we got a valid reading
+	if (batVoltageRaw > 0) {
+		prevBatVoltage = batVoltage;
+	}
+	
+	ble_uart_transmit_LK8EX1(altitudeM, climbrateCps, batVoltage);
+	ESP_LOGD("main.cpp","Transmitted LK8EX1 message: Altitude=%d m, ClimbRate=%d cm/s, Battery=%.2f V", altitudeM, climbrateCps, batVoltage);
     vTaskDelay(100 / portTICK_PERIOD_MS);
   }
 }
@@ -94,9 +111,9 @@ void ble_uart_transmit_LK8EX1(int32_t altm, int32_t cps, float batVoltage) {
 	char szcksum[5];
 	sprintf(szcksum,"%02X\r\n", cksum);
 	strcat(szmsg, szcksum);
-#ifdef BLE_DEBUG	
-    dbg_printf(("%s", szmsg)); 
+#ifdef BLE_DEBUG
+    dbg_printf(("%s", szmsg));
 #endif
 	pTxCharacteristic->setValue((const uint8_t*)szmsg, strlen(szmsg));
-	pTxCharacteristic->notify();   
+	pTxCharacteristic->notify();
 	}

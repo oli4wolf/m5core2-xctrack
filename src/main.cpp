@@ -31,7 +31,7 @@ SemaphoreHandle_t xSensorMutex;
 // DISPLAY FUNCTION DECLARATIONS
 // =============================================================================
 
-void drawHeader(float battery, float altitude);
+void drawHeader(int32_t battery, float altitude);
 void drawMainDisplay(float vSpeed);
 void drawFooter(bool soundEnabled);
 void initializeDisplay();
@@ -123,9 +123,9 @@ void startupScreen()
   lcd.println("v0.1");
   lcd.println("by @oli4wolf on github");
   lcd.println("This is a non-commercial project.");
-  float batteryLevel = M5.Power.getBatteryLevel();
-  lcd.printf("Battery Level: %.2f V\n", batteryLevel);
-  ESP_LOGI("Display", "Startup screen drawn, battery=%.2f%, waiting 5s", batteryLevel);
+  int32_t batteryLevel = M5.Power.getBatteryLevel();
+  lcd.printf("Battery Level: %.2f %%\n", batteryLevel);
+  ESP_LOGI("Display", "Startup screen drawn, battery=%.2f%%, waiting 5s", batteryLevel);
   delay(5000);
 }
 
@@ -135,8 +135,8 @@ void setup()
   Serial.println("Starting BLE work!");
   ESP_LOGI("main.cpp", "Serial initialized");
 
-  float batVoltage = M5.Power.getBatteryVoltage();
-  ESP_LOGI("main.cpp", "Battery voltage: %.2f", batVoltage);
+  int32_t batteryLevel = M5.Power.getBatteryLevel();
+  ESP_LOGI("main.cpp", "Battery voltage: %.2f", batteryLevel);
   xSensorMutex = xSemaphoreCreateMutex(); // Initialize the sensor mutex
   xSemaphoreGive(xSensorMutex);
   ESP_LOGI("main.cpp", "Sensor mutex created");
@@ -162,12 +162,6 @@ void setup()
 
 void loop()
 {
-  static float prevBattery = 0;
-  static float prevAltitude = 0;
-  static float prevVSpeed = 0;
-
-  unsigned long currentMillis = millis();
-
   // Check for button press (sound toggle)
   M5.update();
   if (M5.BtnA.wasPressed())
@@ -183,7 +177,7 @@ void loop()
   float altitude = 0.0f;
   float verticalSpeed = 0.0f;
   // Convert millivolts to volts and ignore zero readings
-  float batteryLevel = M5.Power.getBatteryLevel();
+  int32_t batteryLevel = M5.Power.getBatteryLevel();
 
   // Read sensor data with mutex protection
   if (xSemaphoreTake(xSensorMutex, portMAX_DELAY) == pdTRUE)
@@ -208,7 +202,7 @@ void loop()
   drawMainDisplay(verticalSpeed);
 
   // Log for debugging (keep existing log)
-  ESP_LOGI("main.cpp", "Altitude: %.1f, V-Speed: %.2f, Pressure: %.1f, Temperature: %.2f, Battery: %.2f %",
+  ESP_LOGI("main.cpp", "Altitude: %.1f, V-Speed: %.2f, Pressure: %.1f, Temperature: %.2f, Battery: %d %",
            altitude, verticalSpeed, pressure, temperature, batteryLevel);
 
   // Short delay to check buttons frequently while not blocking
@@ -236,7 +230,7 @@ void initializeDisplay()
 
 }
 
-void drawHeader(float battery, float altitude)
+void drawHeader(int32_t battery, float altitude)
 {
   ESP_LOGI("Display", "drawHeader called - battery=%.1f%%, altitude=%.1fm", battery, altitude);
   // Clear header area (maintains background color)

@@ -86,7 +86,7 @@ void sensorReadTask(void *pvParameters)
         {
             // Sensor not available - provide safe dummy values
             consecutiveFailures++;
-            ESP_LOGW("sensor_task.cpp", "DIAG: Sensor unavailable (failure #%d)", consecutiveFailures);
+            ESP_LOGW("sensor_task.cpp", "Sensor unavailable (failure #%d)", consecutiveFailures);
         }
 
         // Todo change the timing.

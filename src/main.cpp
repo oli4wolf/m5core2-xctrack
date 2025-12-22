@@ -31,7 +31,7 @@ SemaphoreHandle_t xSensorMutex;
 // DISPLAY FUNCTION DECLARATIONS
 // =============================================================================
 
-void drawHeader(int32_t battery, float altitude);
+void drawHeader(int32_t battery, float altitude, BLEConnectionState bleState);
 void drawMainDisplay(float vSpeed);
 void drawFooter(bool soundEnabled);
 void initializeDisplay();
@@ -195,8 +195,11 @@ void loop()
     xSemaphoreGive(xVariometerMutex);
   }
 
+  // Get BLE connection state
+  BLEConnectionState bleState = getBLEState();
+
   // Update header if battery or altitude changed significantly
-  drawHeader(batteryLevel, altitude);
+  drawHeader(batteryLevel, altitude, bleState);
 
   // Always update main display (vertical speed changes frequently)
   drawMainDisplay(verticalSpeed);
@@ -230,7 +233,7 @@ void initializeDisplay()
 
 }
 
-void drawHeader(int32_t battery, float altitude)
+void drawHeader(int32_t battery, float altitude, BLEConnectionState bleState)
 {
   ESP_LOGI("Display", "drawHeader called - battery=%.1f%%, altitude=%.1fm", battery, altitude);
   // Clear header area (maintains background color)
@@ -243,6 +246,30 @@ void drawHeader(int32_t battery, float altitude)
   // Draw battery on left side
   lcd.setCursor(5, 12);
   lcd.printf("Bat: %.1f%", battery);
+
+  // Draw BLE status indicator if enabled
+  if (BLE_SHOW_STATUS_ON_DISPLAY) {
+    lcd.setTextSize(1);
+    lcd.setCursor(5, 25);
+    
+    switch (bleState) {
+      case BLE_CONNECTED:
+        lcd.setTextColor(TFT_GREEN, HEADER_BG_COLOR);
+        lcd.print("BLE:OK");
+        break;
+      case BLE_CONNECTING:
+        lcd.setTextColor(TFT_YELLOW, HEADER_BG_COLOR);
+        lcd.print("BLE:..");
+        break;
+      case BLE_FAILED:
+      case BLE_DISCONNECTED:
+        lcd.setTextColor(TFT_RED, HEADER_BG_COLOR);
+        lcd.print("BLE:--");
+        break;
+    }
+    lcd.setTextSize(HEADER_TEXT_SIZE);
+    lcd.setTextColor(TFT_WHITE, HEADER_BG_COLOR);
+  }
 
   // Draw altitude on right side (right-aligned)
   char altStr[20];

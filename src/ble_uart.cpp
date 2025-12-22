@@ -26,71 +26,169 @@ BLEService* pService                 = NULL;
 BLECharacteristic* pTxCharacteristic = NULL;
 BLECharacteristic* pRxCharacteristic = NULL;
 
+// BLE State Management
+static BLEConnectionState bleState = BLE_DISCONNECTED;
+static SemaphoreHandle_t xBLEStateMutex = NULL;
+static uint32_t bleRetryCount = 0;
+
+// Forward declarations
+void setBLEState(BLEConnectionState newState);
+
 class MyServerCallbacks : public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
-        ESP_LOGD("ble_uart.cpp", "BLE client connected");
+        ESP_LOGI("ble_uart.cpp", "BLE client connected");
+        setBLEState(BLE_CONNECTED);
     }
     void onDisconnect(BLEServer* pServer) {
-        ESP_LOGD("ble_uart.cpp", "BLE client disconnected");
-        pServer->getAdvertising()->start(); // Restart advertising
+        ESP_LOGI("ble_uart.cpp", "BLE client disconnected");
+        setBLEState(BLE_DISCONNECTED);
+        // Try to restart advertising if possible
+        if (pServer && pServer->getAdvertising()) {
+            pServer->getAdvertising()->start();
+        }
     }
 };
 
 static uint8_t ble_uart_nmea_checksum(const char *szNMEA);
 
-void ble_task(void *pvParameter)
-{
-	  (void) pvParameter; // Suppress unused parameter warning
-	 int32_t altitudeM = 0;
-	 int32_t climbrateCps = 0;
-	 int32_t prevBatLevel = 0; // Default battery voltage for fallback
-	 
-  ble_uart_init();	
-  ESP_LOGD("main.cpp","Bluetooth LE LK8EX1 messages @ 10Hz");
-  while (1)
-  {
-	if (xSemaphoreTake(xVariometerMutex, (TickType_t)10) == pdTRUE) {
-	   	altitudeM = static_cast<int32_t>(globalAltitude_m);
-	   	climbrateCps = static_cast<int32_t>(globalVerticalSpeed_mps * 100);
-		xSemaphoreGive(xVariometerMutex);
-	}
-	
-	// Read battery voltage and convert from millivolts to volts
-	int32_t batLevel = M5.Power.getBatteryLevel();
-	batLevel = (batLevel > 0) ? (batLevel / 1000.0f) : prevBatLevel;
-	
-	// Update previous voltage if we got a valid reading
-	if (batLevel > 0) {
-		prevBatLevel = batLevel;
-	}
-	
-	ble_uart_transmit_LK8EX1(altitudeM, climbrateCps, batLevel);
-	ESP_LOGD("main.cpp","Transmitted LK8EX1 message: Altitude=%d m, ClimbRate=%d cm/s, Battery=%.2f V", altitudeM, climbrateCps, batLevel);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-  }
+// Thread-safe state management functions
+void setBLEState(BLEConnectionState newState) {
+    if (xBLEStateMutex && xSemaphoreTake(xBLEStateMutex, portMAX_DELAY) == pdTRUE) {
+        bleState = newState;
+        xSemaphoreGive(xBLEStateMutex);
+    }
 }
 
-void ble_uart_init() {
-	ESP_LOGD("ble_uart.cpp", "Starting BLE initialization");
-	BLEDevice::init("M5Core2-Vario");
-	BLEDevice::setMTU(46);
-	BLEDevice::setPower(ESP_PWR_LVL_N0); // 0dB Device ist gleich nebendran.
+BLEConnectionState getBLEState() {
+    BLEConnectionState state = BLE_DISCONNECTED;
+    if (xBLEStateMutex && xSemaphoreTake(xBLEStateMutex, (TickType_t)10) == pdTRUE) {
+        state = bleState;
+        xSemaphoreGive(xBLEStateMutex);
+    }
+    return state;
+}
 
-	pBLEServer = BLEDevice::createServer();
-	pBLEServer->setCallbacks(new MyServerCallbacks());
+void ble_task(void *pvParameter)
+{
+    (void) pvParameter; // Suppress unused parameter warning
+    int32_t altitudeM = 0;
+    int32_t climbrateCps = 0;
+    int32_t prevBatLevel = 0;
+    uint32_t lastRetryAttempt = 0;
+    
+    // Initialize state mutex
+    xBLEStateMutex = xSemaphoreCreateMutex();
+    if (!xBLEStateMutex) {
+        ESP_LOGE("ble_uart.cpp", "Failed to create BLE state mutex");
+        vTaskDelete(NULL);
+        return;
+    }
+    
+    setBLEState(BLE_DISCONNECTED);
+    ESP_LOGI("ble_uart.cpp", "BLE task started, will retry connection every %d seconds", BLE_RETRY_INTERVAL_MS / 1000);
+    
+    while (1)
+    {
+        BLEConnectionState currentState = getBLEState();
+        
+        switch (currentState) {
+            case BLE_DISCONNECTED:
+            case BLE_FAILED:
+            {
+                // Check if retry interval has elapsed
+                if (millis() - lastRetryAttempt >= BLE_RETRY_INTERVAL_MS) {
+                    ESP_LOGI("ble_uart.cpp", "Attempting BLE connection (attempt #%d)...", ++bleRetryCount);
+                    setBLEState(BLE_CONNECTING);
+                    lastRetryAttempt = millis();
+                    
+                    if (ble_uart_init()) {
+                        setBLEState(BLE_CONNECTED);
+                        ESP_LOGI("ble_uart.cpp", "BLE connected successfully");
+                    } else {
+                        setBLEState(BLE_FAILED);
+                        ESP_LOGW("ble_uart.cpp", "BLE connection failed, will retry in %d seconds",
+                                 BLE_RETRY_INTERVAL_MS / 1000);
+                    }
+                }
+                break;
+            }
+                
+            case BLE_CONNECTED:
+            {
+                // Read variometer data
+                if (xSemaphoreTake(xVariometerMutex, (TickType_t)10) == pdTRUE) {
+                    altitudeM = static_cast<int32_t>(globalAltitude_m);
+                    climbrateCps = static_cast<int32_t>(globalVerticalSpeed_mps * 100);
+                    xSemaphoreGive(xVariometerMutex);
+                }
+                
+                // Read battery data
+                int32_t batLevel = M5.Power.getBatteryLevel();
+                batLevel = (batLevel > 0) ? (batLevel / 1000.0f) : prevBatLevel;
+                if (batLevel > 0) {
+                    prevBatLevel = batLevel;
+                }
+                
+                // Transmit only when connected
+                ble_uart_transmit_LK8EX1(altitudeM, climbrateCps, batLevel);
+                ESP_LOGD("ble_uart.cpp", "Transmitted LK8EX1 message: Altitude=%d m, ClimbRate=%d cm/s, Battery=%d V",
+                         altitudeM, climbrateCps, batLevel);
+                break;
+            }
+                
+            case BLE_CONNECTING:
+                // Wait for initialization to complete
+                break;
+        }
+        
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+    }
+}
 
-	pService          = pBLEServer->createService(SERVICE_UUID);
-	
-	pTxCharacteristic = pService->createCharacteristic(CHARACTERISTIC_UUID_TX, BLECharacteristic::PROPERTY_NOTIFY);
-	pRxCharacteristic = pService->createCharacteristic(
-		CHARACTERISTIC_UUID_RX,
-		BLECharacteristic::PROPERTY_WRITE);
-	pTxCharacteristic->addDescriptor(new BLE2902());
+bool ble_uart_init() {
+    ESP_LOGI("ble_uart.cpp", "Starting BLE initialization");
+    
+    try {
+        BLEDevice::init("M5Core2-Vario");
+        BLEDevice::setMTU(46);
+        BLEDevice::setPower(ESP_PWR_LVL_N0); // 0dB Device ist gleich nebendran.
 
-	pService->start();
-	pBLEServer->getAdvertising()->start();
-	ESP_LOGD("ble_uart.cpp", "BLE advertising started");
-	}
+        pBLEServer = BLEDevice::createServer();
+        if (!pBLEServer) {
+            ESP_LOGE("ble_uart.cpp", "Failed to create BLE server");
+            return false;
+        }
+        
+        pBLEServer->setCallbacks(new MyServerCallbacks());
+
+        pService = pBLEServer->createService(SERVICE_UUID);
+        if (!pService) {
+            ESP_LOGE("ble_uart.cpp", "Failed to create BLE service");
+            return false;
+        }
+        
+        pTxCharacteristic = pService->createCharacteristic(CHARACTERISTIC_UUID_TX, BLECharacteristic::PROPERTY_NOTIFY);
+        pRxCharacteristic = pService->createCharacteristic(
+            CHARACTERISTIC_UUID_RX,
+            BLECharacteristic::PROPERTY_WRITE);
+        
+        if (!pTxCharacteristic || !pRxCharacteristic) {
+            ESP_LOGE("ble_uart.cpp", "Failed to create BLE characteristics");
+            return false;
+        }
+        
+        pTxCharacteristic->addDescriptor(new BLE2902());
+
+        pService->start();
+        pBLEServer->getAdvertising()->start();
+        ESP_LOGI("ble_uart.cpp", "BLE advertising started successfully");
+        return true;
+        
+    } catch (...) {
+        ESP_LOGE("ble_uart.cpp", "BLE initialization failed with exception");
+        return false;
+    }
+}
 
 
 static uint8_t ble_uart_nmea_checksum(const char *szNMEA){

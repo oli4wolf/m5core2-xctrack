@@ -6,6 +6,10 @@
 const bool DEFAULT_SOUND_ENABLED = true; // Default sound setting
 extern bool globalSoundEnabled; // Global variable to control sound output at runtime
 
+// BLE Configuration
+const uint32_t BLE_RETRY_INTERVAL_MS = 10000;  // 10 seconds retry interval
+const bool BLE_SHOW_STATUS_ON_DISPLAY = true;  // Show BLE status indicator
+
 // Zoom Constants
 const int MIN_ZOOM_LEVEL = 1;
 const int DEFAULT_MAP_ZOOM_LEVEL = 15;

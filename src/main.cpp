@@ -235,7 +235,7 @@ void initializeDisplay()
 
 void drawHeader(int32_t battery, float altitude, BLEConnectionState bleState)
 {
-  ESP_LOGI("Display", "drawHeader called - battery=%.1f%%, altitude=%.1fm", battery, altitude);
+  ESP_LOGI("Display", "drawHeader called - battery=%d, altitude=%.1fm", battery, altitude);
   // Clear header area (maintains background color)
   lcd.fillRect(0, 0, DISPLAY_WIDTH, HEADER_HEIGHT, HEADER_BG_COLOR);
 
@@ -245,26 +245,23 @@ void drawHeader(int32_t battery, float altitude, BLEConnectionState bleState)
 
   // Draw battery on left side
   lcd.setCursor(5, 12);
-  lcd.printf("Bat: %.1f%", battery);
+  lcd.printf("Bat: %d", battery);
 
   // Draw BLE status indicator if enabled
   if (BLE_SHOW_STATUS_ON_DISPLAY) {
-    lcd.setTextSize(1);
-    lcd.setCursor(5, 25);
-    
     switch (bleState) {
       case BLE_CONNECTED:
         lcd.setTextColor(TFT_GREEN, HEADER_BG_COLOR);
-        lcd.print("BLE:OK");
+        lcd.print("  BLE");
         break;
       case BLE_CONNECTING:
         lcd.setTextColor(TFT_YELLOW, HEADER_BG_COLOR);
-        lcd.print("BLE:..");
+        lcd.print("  BLE");
         break;
       case BLE_FAILED:
       case BLE_DISCONNECTED:
         lcd.setTextColor(TFT_RED, HEADER_BG_COLOR);
-        lcd.print("BLE:--");
+        lcd.print("  BLE");
         break;
     }
     lcd.setTextSize(HEADER_TEXT_SIZE);

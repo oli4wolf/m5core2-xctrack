@@ -124,6 +124,7 @@ void ble_task(void *pvParameter)
                 
                 // Read battery data
                 int32_t batLevel = M5.Power.getBatteryLevel();
+                ESP_LOGD("ble_uart.cpp", "Battery level read: %d", batLevel);
                 batLevel = (batLevel > 0) ? (batLevel / 1000.0f) : prevBatLevel;
                 if (batLevel > 0) {
                     prevBatLevel = batLevel;
@@ -203,21 +204,12 @@ static uint8_t ble_uart_nmea_checksum(const char *szNMEA){
 
 // $LK8EX1,<pressure Pa>,<altitude m>,<vario cm/s>,<temperature C>,<battery V>*<checksum>
 void ble_uart_transmit_LK8EX1(int32_t altm, int32_t cps, int32_t batteryLevel) {
-	// DIAGNOSTIC: Log input values to detect overflow conditions
-	ESP_LOGI("ble_uart.cpp", "[DEBUG] Input values - altm=%d, cps=%d, batteryLevel=%d", altm, cps, batteryLevel);
-	
 	char szmsg[40];
 	int msgLen = sprintf(szmsg, "$LK8EX1,999999,%d,%d,99,%d*", altm, cps, batteryLevel);
-	
-	// DIAGNOSTIC: Check message length before checksum
-	ESP_LOGI("ble_uart.cpp", "[DEBUG] Message length after sprintf=%d, buffer size=40, content='%s'", msgLen, szmsg);
 	
 	uint8_t cksum = ble_uart_nmea_checksum(szmsg);
 	char szcksum[5];
 	int cksumLen = sprintf(szcksum,"%02X\r\n", cksum);
-	
-	// DIAGNOSTIC: Check checksum length
-	ESP_LOGI("ble_uart.cpp", "[DEBUG] Checksum length=%d, total would be=%d", cksumLen, msgLen + cksumLen);
 	
 	strcat(szmsg, szcksum);
 	

@@ -12,7 +12,7 @@ enum BLEConnectionState {
 };
 
 bool ble_uart_init();
-void ble_uart_transmit_LK8EX1(int32_t altm, int32_t cps, int32_t batteryLevel);
+bool ble_uart_transmit_LK8EX1(int32_t altm, int32_t cps, int32_t batteryLevel);
 void ble_task(void *pvParameter);
 BLEConnectionState getBLEState();
 

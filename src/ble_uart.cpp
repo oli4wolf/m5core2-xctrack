@@ -21,6 +21,12 @@ extern SemaphoreHandle_t xVariometerMutex;
 #define CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
 #define CHARACTERISTIC_UUID_TX "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
 
+// LK8EX1 protocol constants
+// See: https://github.com/LK8000/LK8000/blob/master/Docs/LK8EX1.txt
+static constexpr int32_t LK8EX1_PRESSURE_UNAVAILABLE = 999999;  // Pressure in Pa (not measured)
+static constexpr int32_t LK8EX1_TEMP_UNAVAILABLE = 99;          // Temperature in °C (not measured)
+static constexpr size_t LK8EX1_BUFFER_SIZE = 64;                // Safe buffer for worst-case message
+
 BLEServer* pBLEServer                = NULL;
 BLEService* pService                 = NULL;
 BLECharacteristic* pTxCharacteristic = NULL;
@@ -203,21 +209,43 @@ static uint8_t ble_uart_nmea_checksum(const char *szNMEA){
 	}
 
 // $LK8EX1,<pressure Pa>,<altitude m>,<vario cm/s>,<temperature C>,<battery V>*<checksum>
-void ble_uart_transmit_LK8EX1(int32_t altm, int32_t cps, int32_t batteryLevel) {
-	char szmsg[40];
-	int msgLen = sprintf(szmsg, "$LK8EX1,999999,%d,%d,99,%d*", altm, cps, batteryLevel);
-	
-	uint8_t cksum = ble_uart_nmea_checksum(szmsg);
-	char szcksum[5];
-	int cksumLen = sprintf(szcksum,"%02X\r\n", cksum);
-	
-	strcat(szmsg, szcksum);
-	
-	// DIAGNOSTIC: Final message length
-	ESP_LOGI("ble_uart.cpp", "[DEBUG] Final message length=%d, content='%s'", (int)strlen(szmsg), szmsg);
+bool ble_uart_transmit_LK8EX1(int32_t altm, int32_t cps, int32_t batteryLevel) {
+    char szmsg[LK8EX1_BUFFER_SIZE];
+    
+    // Format message with bounds checking using defined constants
+    int msgLen = snprintf(szmsg, sizeof(szmsg),
+        "$LK8EX1,%d,%d,%d,%d,%d*",
+        LK8EX1_PRESSURE_UNAVAILABLE, altm, cps, LK8EX1_TEMP_UNAVAILABLE, batteryLevel);
+    
+    // Validate message length (need room for checksum "XX\r\n" = 4 chars + null)
+    if (msgLen < 0 || msgLen >= static_cast<int>(sizeof(szmsg) - 5)) {
+        ESP_LOGE("ble_uart.cpp", "LK8EX1 message formatting failed or too long: %d", msgLen);
+        return false;
+    }
+    
+    // Calculate and append checksum with bounds checking
+    uint8_t cksum = ble_uart_nmea_checksum(szmsg);
+    char szcksum[5];
+    snprintf(szcksum, sizeof(szcksum), "%02X\r\n", cksum);
+    strncat(szmsg, szcksum, sizeof(szmsg) - strlen(szmsg) - 1);
+    
+    // Cache final length to avoid redundant strlen() calls
+    size_t finalLen = strlen(szmsg);
+    ESP_LOGD("ble_uart.cpp", "LK8EX1: len=%zu, msg='%s'", finalLen, szmsg);
+
 #ifdef BLE_DEBUG
     dbg_printf(("%s", szmsg));
 #endif
-	pTxCharacteristic->setValue((const uint8_t*)szmsg, strlen(szmsg));
-	pTxCharacteristic->notify();
-	}
+
+    // Thread-safe pointer capture (TOCTOU protection)
+    BLECharacteristic* pLocalTx = pTxCharacteristic;
+    if (pLocalTx != nullptr) {
+        // Cast to non-const uint8_t* as required by ESP32 BLE library API
+        pLocalTx->setValue(reinterpret_cast<uint8_t*>(szmsg), finalLen);
+        pLocalTx->notify();
+        return true;
+    }
+    
+    ESP_LOGW("ble_uart.cpp", "Cannot transmit: pTxCharacteristic is NULL");
+    return false;
+}

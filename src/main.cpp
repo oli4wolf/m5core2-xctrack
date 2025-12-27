@@ -11,11 +11,10 @@
 #include "variometer_task.h" // Include the new variometer task header
 #include "sound.h"           // Include sound management header
 #include "config.h"          // Include configuration constants
+#include "gui.h"             // Include GUI functions
 
 // BLE Server example
 // https://github.com/naoki-sawada/m5stack-ble/blob/master/m5stack-ble/m5stack-ble.ino
-
-M5GFX lcd;
 
 // Variometer global variables
 extern float globalAltitude_m;
@@ -26,15 +25,6 @@ bool globalSoundEnabled = DEFAULT_SOUND_ENABLED; // Global variable to control s
 
 extern SemaphoreHandle_t xVariometerMutex;
 SemaphoreHandle_t xSensorMutex;
-
-// =============================================================================
-// DISPLAY FUNCTION DECLARATIONS
-// =============================================================================
-
-void drawHeader(int32_t battery, float altitude, BLEConnectionState bleState);
-void drawMainDisplay(float vSpeed);
-void drawFooter(bool soundEnabled);
-void initializeDisplay();
 
 // =============================================================================
 // TASK INITIALIZATION FUNCTIONS
@@ -106,34 +96,13 @@ void initializeM5Stack()
   lcd.init();
   ESP_LOGI("Display", "lcd.init() completed, width=%d, height=%d", lcd.width(), lcd.height());
 
-  // CRITICAL: Explicitly enable and set display brightness
-  lcd.setBrightness(255); // Set to maximum brightness
-  lcd.wakeup();           // Ensure display is awake
-
   M5.Ex_I2C.release();
-}
-
-void startupScreen()
-{
-  lcd.fillScreen(TFT_BLACK);
-  lcd.setCursor(0, 0);
-  lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-  lcd.setTextSize(1);
-  lcd.println("M5Stack Core2 XCTrack");
-  lcd.println("v0.1");
-  lcd.println("by @oli4wolf on github");
-  lcd.println("This is a non-commercial project.");
-  int32_t batteryLevel = M5.Power.getBatteryLevel();
-  lcd.printf("Battery Level: %.2f %%\n", batteryLevel);
-  ESP_LOGI("Display", "Startup screen drawn, battery=%.2f%%, waiting 5s", batteryLevel);
-  delay(5000);
 }
 
 void setup()
 {
   Serial.begin(115200);
-  Serial.println("Starting BLE work!");
-  ESP_LOGI("main.cpp", "Serial initialized");
+  ESP_LOGD("main.cpp", "Starting BLE work!");
 
   int32_t batteryLevel = M5.Power.getBatteryLevel();
   ESP_LOGI("main.cpp", "Battery voltage: %.2f", batteryLevel);
@@ -151,7 +120,6 @@ void setup()
   initSensor();    // Start the sensor reading task
   initializeSensorTask();
   initVariometerTask(); // Start the variometer task
-  delay(2000);          // Wait for 2 seconds to ensure everything is initialized
 
   initializeVariometerTask(); // Initialize the variometer task components after sensor Task.
   initializeBLE();
@@ -160,6 +128,11 @@ void setup()
   initializeDisplay();
 }
 
+// Display update at configured interval
+float pressure = 0.0f;
+float temperature = 0.0f;
+float altitude = 0.0f;
+float verticalSpeed = 0.0f;
 void loop()
 {
   // Check for button press (sound toggle)
@@ -171,11 +144,6 @@ void loop()
     ESP_LOGI("main.cpp", "Sound toggled: %s", globalSoundEnabled ? "ON" : "MUTED");
   }
 
-  // Display update at configured interval
-  float pressure = 0.0f;
-  float temperature = 0.0f;
-  float altitude = 0.0f;
-  float verticalSpeed = 0.0f;
   // Convert millivolts to volts and ignore zero readings
   int32_t batteryLevel = M5.Power.getBatteryLevel();
 
@@ -210,138 +178,4 @@ void loop()
 
   // Short delay to check buttons frequently while not blocking
   vTaskDelay(pdMS_TO_TICKS(DISPLAY_UPDATE_INTERVAL_MS));
-}
-
-// =============================================================================
-// DISPLAY FUNCTION IMPLEMENTATIONS
-// =============================================================================
-
-void initializeDisplay()
-{
-  // Ensure display is on and bright
-  lcd.wakeup();
-  lcd.setBrightness(255);
-  lcd.fillScreen(TFT_BLACK);
-  // Draw static header background
-  lcd.fillRect(0, 0, DISPLAY_WIDTH, HEADER_HEIGHT, HEADER_BG_COLOR);
-
-  // Draw static footer background
-  lcd.fillRect(0, DISPLAY_HEIGHT - FOOTER_HEIGHT, DISPLAY_WIDTH, FOOTER_HEIGHT, FOOTER_BG_COLOR);
-
-  // Initial footer with sound status
-  drawFooter(globalSoundEnabled);
-
-}
-
-void drawHeader(int32_t battery, float altitude, BLEConnectionState bleState)
-{
-  ESP_LOGI("Display", "drawHeader called - battery=%d, altitude=%.1fm", battery, altitude);
-  // Clear header area (maintains background color)
-  lcd.fillRect(0, 0, DISPLAY_WIDTH, HEADER_HEIGHT, HEADER_BG_COLOR);
-
-  // Set text properties for header
-  lcd.setTextSize(HEADER_TEXT_SIZE);
-  lcd.setTextColor(TFT_WHITE, HEADER_BG_COLOR);
-
-  // Draw battery on left side
-  lcd.setCursor(5, 12);
-  lcd.printf("Bat: %d", battery);
-
-  // Draw BLE status indicator if enabled
-  if (BLE_SHOW_STATUS_ON_DISPLAY) {
-    switch (bleState) {
-      case BLE_CONNECTED:
-        lcd.setTextColor(TFT_GREEN, HEADER_BG_COLOR);
-        lcd.print("  BLE");
-        break;
-      case BLE_CONNECTING:
-        lcd.setTextColor(TFT_YELLOW, HEADER_BG_COLOR);
-        lcd.print("  BLE");
-        break;
-      case BLE_FAILED:
-      case BLE_DISCONNECTED:
-        lcd.setTextColor(TFT_RED, HEADER_BG_COLOR);
-        lcd.print("  BLE");
-        break;
-    }
-    lcd.setTextSize(HEADER_TEXT_SIZE);
-    lcd.setTextColor(TFT_WHITE, HEADER_BG_COLOR);
-  }
-
-  // Draw altitude on right side (right-aligned)
-  char altStr[20];
-  snprintf(altStr, sizeof(altStr), "Alt: %.1fm", altitude);
-  int textWidth = lcd.textWidth(altStr);
-  lcd.setCursor(DISPLAY_WIDTH - textWidth - 5, 12);
-  lcd.print(altStr);
-}
-
-void drawMainDisplay(float vSpeed)
-{
-  ESP_LOGI("Display", "drawMainDisplay called - vSpeed=%.2f m/s", vSpeed);
-  // Determine color based on vertical speed
-  uint16_t color;
-  if (vSpeed > VSPEED_CLIMB_THRESHOLD)
-  {
-    color = TFT_GREEN; // Climbing
-  }
-  else if (vSpeed < VSPEED_SINK_THRESHOLD)
-  {
-    color = TFT_RED; // Sinking
-  }
-  else
-  {
-    color = TFT_YELLOW; // Neutral
-  }
-
-  // Clear main display area
-  lcd.fillRect(0, HEADER_HEIGHT, DISPLAY_WIDTH, MAIN_DISPLAY_HEIGHT, TFT_BLACK);
-
-  // Set text properties for main display
-  lcd.setTextSize(MAIN_TEXT_SIZE);
-  lcd.setTextColor(color, TFT_BLACK);
-
-  // Format vertical speed string with sign
-  char vSpeedStr[20];
-  if (vSpeed >= 0)
-  {
-    snprintf(vSpeedStr, sizeof(vSpeedStr), "+%.1f m/s", vSpeed);
-  }
-  else
-  {
-    snprintf(vSpeedStr, sizeof(vSpeedStr), "%.1f m/s", vSpeed);
-  }
-
-  // Calculate center position
-  int textWidth = lcd.textWidth(vSpeedStr);
-  int textHeight = lcd.fontHeight();
-  int x = (DISPLAY_WIDTH - textWidth) / 2;
-  int y = HEADER_HEIGHT + (MAIN_DISPLAY_HEIGHT - textHeight) / 2;
-
-  // Draw vertical speed
-  lcd.setCursor(x, y);
-  lcd.print(vSpeedStr);
-  ESP_LOGI("Display", "Main display updated.");
-}
-
-void drawFooter(bool soundEnabled)
-{
-  // Clear footer area
-  lcd.fillRect(0, DISPLAY_HEIGHT - FOOTER_HEIGHT, DISPLAY_WIDTH, FOOTER_HEIGHT, FOOTER_BG_COLOR);
-
-  // Set text properties
-  lcd.setTextSize(FOOTER_TEXT_SIZE);
-
-  // Draw speaker icon and status
-  lcd.setCursor(5, DISPLAY_HEIGHT - FOOTER_HEIGHT + 8);
-  if (soundEnabled)
-  {
-    lcd.setTextColor(TFT_WHITE, FOOTER_BG_COLOR);
-    lcd.print("[SPK] ON");
-  }
-  else
-  {
-    lcd.setTextColor(MUTED_GRAY_COLOR, FOOTER_BG_COLOR);
-    lcd.print("[X] MUTED");
-  }
 }

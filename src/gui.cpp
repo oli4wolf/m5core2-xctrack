@@ -22,8 +22,8 @@ void startupScreen()
   lcd.println("by @oli4wolf on github");
   lcd.println("This is a non-commercial project.");
   int32_t batteryLevel = M5.Power.getBatteryLevel();
-  lcd.printf("Battery Level: %.2f %%\n", batteryLevel);
-  ESP_LOGI("Display", "Startup screen drawn, battery=%.2f%%, waiting 5s", batteryLevel);
+  lcd.printf("Battery Level: %d %%\n", batteryLevel);
+  ESP_LOGI("Display", "Startup screen drawn, battery=%d%%, waiting 5s", batteryLevel);
   delay(5000);
 }
 

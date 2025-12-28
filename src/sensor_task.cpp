@@ -90,6 +90,6 @@ void sensorReadTask(void *pvParameters)
         }
 
         // Todo change the timing.
-        vTaskDelay(pdMS_TO_TICKS(200)); // Wait 0.2 second
+        vTaskDelay(pdMS_TO_TICKS(25)); // Wait 0.2 second
     }
 }

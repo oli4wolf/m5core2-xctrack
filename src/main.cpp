@@ -22,6 +22,7 @@ extern float globalVerticalSpeed_mps;
 float globalPressure = 0.0f;
 float globalTemperature = 0.0f;                  // Added for global temperature
 bool globalSoundEnabled = DEFAULT_SOUND_ENABLED; // Global variable to control sound output at runtime
+int32_t globalBatteryLevel = -1; // Default sea-level pressure in hPa
 
 extern SemaphoreHandle_t xVariometerMutex;
 SemaphoreHandle_t xSensorMutex;
@@ -104,8 +105,6 @@ void setup()
   Serial.begin(115200);
   ESP_LOGD("main.cpp", "Starting BLE work!");
 
-  int32_t batteryLevel = M5.Power.getBatteryLevel();
-  ESP_LOGI("main.cpp", "Battery voltage: %.2f", batteryLevel);
   xSensorMutex = xSemaphoreCreateMutex(); // Initialize the sensor mutex
   xSemaphoreGive(xSensorMutex);
   ESP_LOGI("main.cpp", "Sensor mutex created");
@@ -114,6 +113,7 @@ void setup()
   esp_log_level_set("BLE*", ESP_LOG_WARN); // Example: Suppress for BLE components
   esp_log_level_set("bt", ESP_LOG_WARN);
 
+  // MUST initialize M5Stack BEFORE reading battery level
   initializeM5Stack();
   startupScreen(); // used to delay simplifies loading new code when something goes wrong.
   initSound();     // Initialize the sound module
@@ -133,6 +133,7 @@ float pressure = 0.0f;
 float temperature = 0.0f;
 float altitude = 0.0f;
 float verticalSpeed = 0.0f;
+bool charging = false;
 void loop()
 {
   // Check for button press (sound toggle)
@@ -144,8 +145,16 @@ void loop()
     ESP_LOGI("main.cpp", "Sound toggled: %s", globalSoundEnabled ? "ON" : "MUTED");
   }
 
-  // Convert millivolts to volts and ignore zero readings
   int32_t batteryLevel = M5.Power.getBatteryLevel();
+  if(batteryLevel > 1)
+  {
+    globalBatteryLevel = batteryLevel;
+    ESP_LOGI("main.cpp", "Battery level updated: %d %%", batteryLevel);
+  }else if( M5.Power.isCharging()){
+    ESP_LOGI("main.cpp", "Battery level reading invalid (%d %%). Device is charging; retaining last known level: %d %%", batteryLevel, globalBatteryLevel);
+    globalBatteryLevel = 100; // retain last known good value
+    charging = true;
+  }
 
   // Read sensor data with mutex protection
   if (xSemaphoreTake(xSensorMutex, portMAX_DELAY) == pdTRUE)
@@ -167,14 +176,14 @@ void loop()
   BLEConnectionState bleState = getBLEState();
 
   // Update header if battery or altitude changed significantly
-  drawHeader(batteryLevel, altitude, bleState);
+  drawHeader(globalBatteryLevel, charging, altitude, bleState);
 
   // Always update main display (vertical speed changes frequently)
   drawMainDisplay(verticalSpeed);
 
   // Log for debugging (keep existing log)
   ESP_LOGI("main.cpp", "Altitude: %.1f, V-Speed: %.2f, Pressure: %.1f, Temperature: %.2f, Battery: %d %",
-           altitude, verticalSpeed, pressure, temperature, batteryLevel);
+           altitude, verticalSpeed, pressure, temperature, globalBatteryLevel);
 
   // Short delay to check buttons frequently while not blocking
   vTaskDelay(pdMS_TO_TICKS(DISPLAY_UPDATE_INTERVAL_MS));

@@ -134,7 +134,9 @@ void ble_task(void *pvParameter)
                 }
                 
                 // Read battery data
-                int32_t batLevel = M5.Power.getBatteryLevel();
+                int32_t batVoltage = M5.Power.getBatteryVoltage();  // Returns mV (e.g., 4200)
+                int32_t batLevel = (batVoltage > 0) ? (batVoltage / 1000) : prevBatLevel;  // Convert mV to V
+
                 ESP_LOGD("ble_uart.cpp", "Battery level read: %d", batLevel);
                 batLevel = (batLevel > 0) ? (batLevel / 1000.0f) : prevBatLevel;
                 if (batLevel > 0) {

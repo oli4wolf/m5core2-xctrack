@@ -44,7 +44,7 @@ void initializeDisplay()
   drawFooter(globalSoundEnabled);
 }
 
-void drawHeader(int32_t battery, float altitude, BLEConnectionState bleState)
+void drawHeader(int32_t battery, bool charging, float altitude, BLEConnectionState bleState)
 {
   ESP_LOGI("Display", "drawHeader called - battery=%d, altitude=%.1fm", battery, altitude);
   // Clear header area (maintains background color)
@@ -56,7 +56,11 @@ void drawHeader(int32_t battery, float altitude, BLEConnectionState bleState)
 
   // Draw battery on left side
   lcd.setCursor(5, 12);
-  lcd.printf("Bat: %d", battery);
+  if( charging ) {
+    lcd.printf("Bat: %d (C)", battery);
+  } else {
+    lcd.printf("Bat: %d", battery);
+  }
 
   // Draw BLE status indicator if enabled
   if (BLE_SHOW_STATUS_ON_DISPLAY) {
@@ -132,7 +136,6 @@ void drawMainDisplay(float vSpeed)
   // Draw vertical speed
   lcd.setCursor(x, y);
   lcd.print(vSpeedStr);
-  ESP_LOGI("Display", "Main display updated.");
 }
 
 void drawFooter(bool soundEnabled)

@@ -96,14 +96,8 @@ void initializeM5Stack()
   M5.begin(cfg);
   ESP_LOGI("Display", "DEBUG: M5.begin() completed");
   
-  // Check if touch is available and log detailed status
-  ESP_LOGI("Display", "DEBUG: Touch available: %s", M5.Touch.isEnabled() ? "YES" : "NO");
-  ESP_LOGI("Display", "DEBUG: Touch details count: %d", M5.Touch.getCount());
-  ESP_LOGI("Display", "DEBUG: BtnA available: %s", M5.BtnA.isPressed() >= 0 ? "YES" : "NO");
-  ESP_LOGI("Display", "DEBUG: BtnB available: %s", M5.BtnB.isPressed() >= 0 ? "YES" : "NO");
-  ESP_LOGI("Display", "DEBUG: BtnC available: %s", M5.BtnC.isPressed() >= 0 ? "YES" : "NO");
-  
   lcd.init();
+  lcd.clear();
   ESP_LOGI("Display", "lcd.init() completed, width=%d, height=%d", lcd.width(), lcd.height());
 }
 
@@ -171,14 +165,14 @@ void loop()
   {
     ESP_LOGI("main.cpp", "DEBUG: BtnB.wasPressed() detected!");
     //Increase Volume
-    M5.Speaker.setVolume( std::min(255, M5.Speaker.getVolume() + 16) );
+    M5.Speaker.setVolume( std::max(255, M5.Speaker.getVolume() + 16) );
     ESP_LOGI("main.cpp", "Volume increased to %d", M5.Speaker.getVolume());
   }
   if (M5.BtnC.wasPressed())
   {
     ESP_LOGI("main.cpp", "DEBUG: BtnC.wasPressed() detected!");
     //Decrease Volume
-    M5.Speaker.setVolume( std::min(255, M5.Speaker.getVolume() - 16) );
+    M5.Speaker.setVolume( std::min(0, M5.Speaker.getVolume() - 16) );
     ESP_LOGI("main.cpp", "Volume decreased to %d", M5.Speaker.getVolume());
   }
 
@@ -191,6 +185,9 @@ void loop()
     ESP_LOGI("main.cpp", "Battery level reading invalid (%d %%). Device is charging; retaining last known level: %d %%", batteryLevel, globalBatteryLevel);
     globalBatteryLevel = 100; // retain last known good value
     charging = true;
+  }else if(M5.Power.isCharging() == false){
+    ESP_LOGI("main.cpp", "Battery level reading invalid (%d %%). Device is not charging; retaining last known level: %d %%", batteryLevel, globalBatteryLevel);
+    charging = false;
   }
 
   // Read sensor data with mutex protection

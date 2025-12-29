@@ -18,13 +18,12 @@ void startupScreen()
   lcd.setTextColor(TFT_WHITE, TFT_BLACK);
   lcd.setTextSize(1);
   lcd.println("M5Stack Core2 XCTrack");
-  lcd.println("v0.1");
   lcd.println("by @oli4wolf on github");
   lcd.println("This is a non-commercial project.");
   int32_t batteryLevel = M5.Power.getBatteryLevel();
   lcd.printf("Battery Level: %d %%\n", batteryLevel);
   ESP_LOGI("Display", "Startup screen drawn, battery=%d%%, waiting 5s", batteryLevel);
-  delay(5000);
+  vTaskDelay(5000);
 }
 
 void initializeDisplay()
@@ -64,21 +63,20 @@ void drawHeader(int32_t battery, bool charging, float altitude, BLEConnectionSta
 
   // Draw BLE status indicator if enabled
   if (BLE_SHOW_STATUS_ON_DISPLAY) {
+    lcd.setCursor(DISPLAY_WIDTH/2 - 50, 12);
     switch (bleState) {
       case BLE_CONNECTED:
         lcd.setTextColor(TFT_GREEN, HEADER_BG_COLOR);
-        lcd.print("  BLE");
         break;
       case BLE_CONNECTING:
         lcd.setTextColor(TFT_YELLOW, HEADER_BG_COLOR);
-        lcd.print("  BLE");
         break;
       case BLE_FAILED:
       case BLE_DISCONNECTED:
         lcd.setTextColor(TFT_RED, HEADER_BG_COLOR);
-        lcd.print("  BLE");
         break;
     }
+    lcd.print("BLE");
     lcd.setTextSize(HEADER_TEXT_SIZE);
     lcd.setTextColor(TFT_WHITE, HEADER_BG_COLOR);
   }
@@ -160,6 +158,7 @@ void drawFooter(bool soundEnabled)
   }
     lcd.setCursor(DISPLAY_WIDTH / 2, DISPLAY_HEIGHT - FOOTER_HEIGHT + 8);
     lcd.print("+");
+    lcd.printf("  %d", M5.Speaker.getVolume());
     lcd.setCursor(DISPLAY_WIDTH -40, DISPLAY_HEIGHT - FOOTER_HEIGHT + 8);
     lcd.print("-");
 }

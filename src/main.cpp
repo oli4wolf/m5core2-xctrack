@@ -137,40 +137,23 @@ float verticalSpeed = 0.0f;
 bool charging = false;
 void loop()
 {
-  // DEBUG: Log timing before M5.update()
-  static unsigned long lastUpdateTime = 0;
-  unsigned long currentTime = millis();
-  unsigned long timeSinceLastUpdate = currentTime - lastUpdateTime;
-  
-  if (timeSinceLastUpdate > 600) {
-    ESP_LOGW("main.cpp", "DEBUG: M5.update() delayed by %lu ms", timeSinceLastUpdate);
-  }
-  
   // Check for button press (sound toggle)
   M5.update();
-  lastUpdateTime = millis();
-  
-  // DEBUG: Check button states after update
-  ESP_LOGD("main.cpp", "DEBUG: BtnA pressed=%d, wasPressed=%d, BtnB pressed=%d, BtnC pressed=%d",
-           M5.BtnA.isPressed(), M5.BtnA.wasPressed(), M5.BtnB.isPressed(), M5.BtnC.isPressed());
   
   if (M5.BtnA.wasPressed())
   {
-    ESP_LOGI("main.cpp", "DEBUG: BtnA.wasPressed() detected!");
     globalSoundEnabled = !globalSoundEnabled;
     drawFooter(globalSoundEnabled);
     ESP_LOGI("main.cpp", "Sound toggled: %s", globalSoundEnabled ? "ON" : "MUTED");
   }
   if (M5.BtnB.wasPressed())
   {
-    ESP_LOGI("main.cpp", "DEBUG: BtnB.wasPressed() detected!");
     //Increase Volume
     M5.Speaker.setVolume( std::max(255, M5.Speaker.getVolume() + 16) );
     ESP_LOGI("main.cpp", "Volume increased to %d", M5.Speaker.getVolume());
   }
   if (M5.BtnC.wasPressed())
   {
-    ESP_LOGI("main.cpp", "DEBUG: BtnC.wasPressed() detected!");
     //Decrease Volume
     M5.Speaker.setVolume( std::min(0, M5.Speaker.getVolume() - 16) );
     ESP_LOGI("main.cpp", "Volume decreased to %d", M5.Speaker.getVolume());
@@ -215,13 +198,9 @@ void loop()
   // Always update main display (vertical speed changes frequently)
   drawMainDisplay(verticalSpeed);
 
-  // Log for debugging (keep existing log)
+  // Log for debugging
   ESP_LOGI("main.cpp", "Altitude: %.1f, V-Speed: %.2f, Pressure: %.1f, Temperature: %.2f, Battery: %d %%",
            altitude, verticalSpeed, pressure, temperature, globalBatteryLevel);
-
-  // DEBUG: Log actual delay time
-  ESP_LOGD("main.cpp", "DEBUG: Loop delay = %d ms", DISPLAY_UPDATE_INTERVAL_MS);
   
-  // Short delay to check buttons frequently while not blocking
   vTaskDelay(pdMS_TO_TICKS(DISPLAY_UPDATE_INTERVAL_MS));
 }

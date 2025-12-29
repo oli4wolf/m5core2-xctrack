@@ -46,7 +46,7 @@ void initializeDisplay()
 
 void drawHeader(int32_t battery, bool charging, float altitude, BLEConnectionState bleState)
 {
-  ESP_LOGI("Display", "drawHeader called - battery=%d, altitude=%.1fm", battery, altitude);
+  ESP_LOGI("Display", "drawHeader called - battery=%d, altitude=%.1fm charging=%s", battery, altitude, charging ? "true" : "false");
   // Clear header area (maintains background color)
   lcd.fillRect(0, 0, DISPLAY_WIDTH, HEADER_HEIGHT, HEADER_BG_COLOR);
 
@@ -57,9 +57,9 @@ void drawHeader(int32_t battery, bool charging, float altitude, BLEConnectionSta
   // Draw battery on left side
   lcd.setCursor(5, 12);
   if( charging ) {
-    lcd.printf("Bat: %d (C)", battery);
+    lcd.printf("%d%% (C)", battery);
   } else {
-    lcd.printf("Bat: %d", battery);
+    lcd.printf("%d%%", battery);
   }
 
   // Draw BLE status indicator if enabled
@@ -158,4 +158,8 @@ void drawFooter(bool soundEnabled)
     lcd.setTextColor(MUTED_GRAY_COLOR, FOOTER_BG_COLOR);
     lcd.print("[X] MUTED");
   }
+    lcd.setCursor(DISPLAY_WIDTH / 2, DISPLAY_HEIGHT - FOOTER_HEIGHT + 8);
+    lcd.print("+");
+    lcd.setCursor(DISPLAY_WIDTH -40, DISPLAY_HEIGHT - FOOTER_HEIGHT + 8);
+    lcd.print("-");
 }

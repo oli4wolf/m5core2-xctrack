@@ -2,15 +2,16 @@
 #include <M5Unified.h>
 #include <SparkFun_MS5637_Arduino_Library.h>
 #include <freertos/semphr.h> // Required for mutex
+#include <freertos/queue.h>  // Required for queue
+#include "config.h"          // Required for PRESSURE_QUEUE_LENGTH and threshold
 
 // Declare extern global variables and mutex from main.cpp
 extern float globalPressure;
 extern float globalTemperature;
 extern SemaphoreHandle_t xSensorMutex;
 
-// Declare pressure readings vector and mutex
-std::vector<float> pressureReadings;
-SemaphoreHandle_t xPressureMutex = NULL;
+// Declare pressure queue for thread-safe buffering to variometer task
+QueueHandle_t xPressureQueue = NULL;
 
 MS5637 barometricSensor;
 bool globalSensorInitialized = false; // Track if sensor initialized successfully
@@ -21,9 +22,13 @@ void initSensor()
     delay(100); // Short delay to ensure I2C bus is released
     Wire.begin(M5.Ex_I2C.getSDA(), M5.Ex_I2C.getSCL(), 400000); // Use external I2C pins with 400kHz
     
-    // Create mutex for pressure readings vector
-    xPressureMutex = xSemaphoreCreateMutex();
-    xSemaphoreGive(xPressureMutex);
+    // Create pressure queue for thread-safe communication with variometer task
+    xPressureQueue = xQueueCreate(PRESSURE_QUEUE_LENGTH, sizeof(float));
+    if (xPressureQueue == NULL) {
+        ESP_LOGE("Sensor", "Failed to create pressure queue");
+    } else {
+        ESP_LOGI("Sensor", "Pressure queue created with %d item capacity", PRESSURE_QUEUE_LENGTH);
+    }
 }
 
 void sensorReadTask(void *pvParameters)
@@ -65,15 +70,20 @@ void sensorReadTask(void *pvParameters)
                 ESP_LOGE("Climb", "SensorReadTask: Could not take sensor mutex.");
             }
 
-            // Add pressure to readings vector for Kalman filter
-            if (xSemaphoreTake(xPressureMutex, (TickType_t)10) == pdTRUE)
+            // Send pressure to queue for variometer task (non-blocking)
+            if (xQueueSend(xPressureQueue, &pressure, 0) != pdPASS)
             {
-                pressureReadings.push_back(pressure);
-                xSemaphoreGive(xPressureMutex);
+                ESP_LOGW("Sensor", "Pressure queue full, dropping reading %.2f hPa", pressure);
             }
             else
             {
-                ESP_LOGE("Climb", "SensorReadTask: Could not take pressure mutex.");
+                // Monitor queue utilization to detect slow consumer
+                UBaseType_t queueLevel = uxQueueMessagesWaiting(xPressureQueue);
+                if (queueLevel >= (UBaseType_t)(PRESSURE_QUEUE_LENGTH * PRESSURE_QUEUE_WARNING_THRESHOLD))
+                {
+                    ESP_LOGW("Sensor", "Pressure queue filling up (%d/%d) - consumer not keeping up",
+                             queueLevel, PRESSURE_QUEUE_LENGTH);
+                }
             }
         }
         else

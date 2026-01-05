@@ -47,6 +47,10 @@ const float KALMAN_DT = VARIOMETER_UPDATE_INTERVAL_MS / 1000.0f; // Time step in
 const float KALMAN_PROCESS_NOISE = 0.01f; // Process noise variance
 const float KALMAN_MEASUREMENT_NOISE = 0.04f; // Measurement noise variance (0.2m ^2)
 
+// Pressure Queue Constants
+const size_t PRESSURE_QUEUE_LENGTH = 10;  // Buffer 2 seconds of readings (10 × 200ms)
+const float PRESSURE_QUEUE_WARNING_THRESHOLD = 0.8f;  // Warn when 80% full
+
 // Display Layout Constants
 const int DISPLAY_UPDATE_INTERVAL_MS = 500; // 2 Hz update rate (faster than current 1Hz)
 const int HEADER_HEIGHT = 40;

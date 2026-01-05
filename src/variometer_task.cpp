@@ -1,17 +1,21 @@
 #include "variometer_task.h"
 #include <M5Unified.h>
-#include "sensor_task.h"     // For globalPressure and xSensorMutex
+#include "sensor_task.h"     // For xPressureQueue
 #include "kalman_filter.h"  // For KalmanFilter class
 #include <freertos/semphr.h>
+#include <freertos/queue.h>  // For queue operations
 #include <math.h> // For pow()
 #include <vector> // For std::vector
 #include "config.h" // Include configuration constants
 #include "sound.h" // Include sound module
 
 // Declare extern global variables from main.cpp
-extern float globalPressure;
+extern float globalPressure;    // Still used for initialization
 extern float globalTemperature; // Added for global temperature
 extern SemaphoreHandle_t xSensorMutex;
+
+// Declare extern pressure queue from sensor_task.cpp
+extern QueueHandle_t xPressureQueue;
 
 // Kalman filter instance
 static KalmanFilter* kalmanFilter = nullptr;
@@ -97,19 +101,28 @@ void variometerTask(void *pvParameters) {
     for (;;) {
         unsigned long currentMillis = millis();
         if (currentMillis - previousMillis >= updateIntervalMs) {
-            float currentPressure = 0;
-            if (xSemaphoreTake(xSensorMutex, portMAX_DELAY) == pdTRUE) {
-                currentPressure = globalPressure;
-                xSemaphoreGive(xSensorMutex);
+            // Process all available pressure readings from queue
+            float pressure;
+            int readingsProcessed = 0;
+            
+            while (xQueueReceive(xPressureQueue, &pressure, 0) == pdPASS) {
+                float rawAltitude = pressureToAltitude(pressure);
+                
+                // Kalman filter prediction and update
+                kalmanFilter->predict();
+                kalmanFilter->update(rawAltitude);
+                
+                readingsProcessed++;
+            }
+            
+            // Log diagnostics
+            if (readingsProcessed == 0) {
+                ESP_LOGW("Variometer", "No pressure readings available in queue");
+            } else if (readingsProcessed > 1) {
+                ESP_LOGD("Variometer", "Processed %d pressure readings", readingsProcessed);
             }
 
-            float rawAltitude = pressureToAltitude(currentPressure);
-
-            // Kalman filter prediction and update
-            kalmanFilter->predict();
-            kalmanFilter->update(rawAltitude);
-
-            // Get filtered values
+            // Get filtered values from Kalman filter
             float filteredAltitude = kalmanFilter->getAltitude();
 
             // Calculate raw vertical speed and apply moving average

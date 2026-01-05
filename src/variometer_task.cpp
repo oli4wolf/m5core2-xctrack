@@ -28,7 +28,21 @@ SemaphoreHandle_t xVariometerMutex;
 // P0 is now defined in config.h as STANDARD_SEA_LEVEL_PRESSURE_HPA
 // Function to convert pressure (hPa) to altitude (meters)
 float pressureToAltitude(float pressure_hPa) {
-    return ALTITUDE_CONSTANT_A * (pow(STANDARD_SEA_LEVEL_PRESSURE_HPA / pressure_hPa, 1.0f / ALTITUDE_CONSTANT_B) - 1.0f);
+    // Guard against invalid pressure readings that would produce NaN
+    if (pressure_hPa <= 0.0f || isnan(pressure_hPa) || isinf(pressure_hPa)) {
+        ESP_LOGW("Variometer", "Invalid pressure: %.2f hPa, returning 0.0m altitude", pressure_hPa);
+        return 0.0f;
+    }
+    
+    float altitude = ALTITUDE_CONSTANT_A * (pow(STANDARD_SEA_LEVEL_PRESSURE_HPA / pressure_hPa, 1.0f / ALTITUDE_CONSTANT_B) - 1.0f);
+    
+    // Additional guard: check if calculated altitude is valid
+    if (isnan(altitude) || isinf(altitude)) {
+        ESP_LOGW("Variometer", "Calculated altitude is NaN/Inf for pressure %.2f hPa", pressure_hPa);
+        return 0.0f;
+    }
+    
+    return altitude;
 }
 
 void initVariometerTask() {
@@ -54,12 +68,30 @@ void variometerTask(void *pvParameters) {
     const float altitudeChangeThreshold_mps = ALTITUDE_CHANGE_THRESHOLD_MPS; // meters per second for tone trigger
 
     // Initial altitude reading and set Kalman filter initial state
-    if (xSemaphoreTake(xSensorMutex, portMAX_DELAY) == pdTRUE) {
-        float initialPressure = globalPressure;
-        xSemaphoreGive(xSensorMutex);
-        float initialAltitude = pressureToAltitude(initialPressure); // Already in hPa
+    // Wait for valid sensor data before initializing
+    float initialPressure = 0.0f;
+    int attempts = 0;
+    while (initialPressure <= 0.0f && attempts < 100) {
+        if (xSemaphoreTake(xSensorMutex, portMAX_DELAY) == pdTRUE) {
+            initialPressure = globalPressure;
+            xSemaphoreGive(xSensorMutex);
+        }
+        if (initialPressure <= 0.0f) {
+            ESP_LOGW("Variometer", "Waiting for valid pressure data (attempt %d/100): %.2f hPa", attempts + 1, initialPressure);
+            vTaskDelay(pdMS_TO_TICKS(100)); // Wait 100ms before retry
+            attempts++;
+        }
+    }
+    
+    if (initialPressure > 0.0f) {
+        float initialAltitude = pressureToAltitude(initialPressure);
+        ESP_LOGI("Variometer", "Initializing with pressure=%.2f hPa, altitude=%.2f m", initialPressure, initialAltitude);
         kalmanFilter->setInitialState(initialAltitude, 0.0f); // Initial vertical speed 0
         previousAltitude = initialAltitude; // For tone logic
+    } else {
+        ESP_LOGE("Variometer", "Failed to get valid pressure after %d attempts, using default altitude 0m", attempts);
+        kalmanFilter->setInitialState(0.0f, 0.0f);
+        previousAltitude = 0.0f;
     }
 
     for (;;) {

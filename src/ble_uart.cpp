@@ -121,15 +121,22 @@ void ble_task(void *pvParameter)
                 
             case BLE_CONNECTED:
             {
-                // Read variometer data
+                // Read variometer data with NaN guards
                 if (xSemaphoreTake(xVariometerMutex, (TickType_t)10) == pdTRUE) {
-                    altitudeM = static_cast<int32_t>(globalAltitude_m);
-                    climbrateCps = static_cast<int32_t>(globalVerticalSpeed_mps * 100);
+                    // Guard against NaN values - use 0 as safe default
+                    float altitude = globalAltitude_m;
+                    float vertSpeed = globalVerticalSpeed_mps;
                     xSemaphoreGive(xVariometerMutex);
+                    
+                    // Only convert valid float values to int32_t
+                    altitudeM = isnan(altitude) ? 0 : static_cast<int32_t>(altitude);
+                    climbrateCps = isnan(vertSpeed) ? 0 : static_cast<int32_t>(vertSpeed * 100);
                 }
                 
                 // Read battery data
-                int32_t batLevel = M5.Power.getBatteryLevel();
+                int32_t batVoltage = M5.Power.getBatteryVoltage();  // Returns mV (e.g., 4200)
+                int32_t batLevel = (batVoltage > 0) ? (batVoltage / 1000) : prevBatLevel;  // Convert mV to V
+
                 ESP_LOGD("ble_uart.cpp", "Battery level read: %d", batLevel);
                 batLevel = (batLevel > 0) ? (batLevel / 1000.0f) : prevBatLevel;
                 if (batLevel > 0) {
@@ -157,7 +164,13 @@ bool ble_uart_init() {
     
     try {
         BLEDevice::init("M5Core2-Vario");
-        BLEDevice::setMTU(46);
+        
+        // Set MTU to 512 bytes to support longer messages
+        // ESP32 supports MTU up to 517 bytes (512 payload + 5 byte header)
+        BLEDevice::setMTU(512);
+        
+        ESP_LOGI("ble_uart.cpp", "BLE MTU set to: 512 bytes (effective payload ~509 bytes)");
+        
         BLEDevice::setPower(ESP_PWR_LVL_N0); // 0dB Device ist gleich nebendran.
 
         pBLEServer = BLEDevice::createServer();
@@ -231,7 +244,15 @@ bool ble_uart_transmit_LK8EX1(int32_t altm, int32_t cps, int32_t batteryLevel) {
     
     // Cache final length to avoid redundant strlen() calls
     size_t finalLen = strlen(szmsg);
-    ESP_LOGD("ble_uart.cpp", "LK8EX1: len=%zu, msg='%s'", finalLen, szmsg);
+    
+    // Log message details (INFO level for debugging, switch to DEBUG when stable)
+    ESP_LOGD("ble_uart.cpp", "LK8EX1 Message Length: %zu bytes (MTU: 512 bytes)", finalLen);
+    ESP_LOGD("ble_uart.cpp", "LK8EX1 Message Content: '%s'", szmsg);
+    
+    // Warn if message exceeds safe MTU size (should not happen with 512 byte MTU)
+    if (finalLen > 509) {
+        ESP_LOGW("ble_uart.cpp", "⚠️ MESSAGE TOO LONG: %zu bytes exceeds 509-byte payload limit!", finalLen);
+    }
 
 #ifdef BLE_DEBUG
     dbg_printf(("%s", szmsg));

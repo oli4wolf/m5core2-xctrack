@@ -12,6 +12,8 @@
 #include "sound.h"           // Include sound management header
 #include "config.h"          // Include configuration constants
 #include "gui.h"             // Include GUI functions
+#include "button.h"          // Include button handling functions
+#include "Arduino.h"
 
 // BLE Server example
 // https://github.com/naoki-sawada/m5stack-ble/blob/master/m5stack-ble/m5stack-ble.ino
@@ -22,10 +24,13 @@ extern float globalVerticalSpeed_mps;
 float globalPressure = 0.0f;
 float globalTemperature = 0.0f;                  // Added for global temperature
 bool globalSoundEnabled = DEFAULT_SOUND_ENABLED; // Global variable to control sound output at runtime
-int32_t globalBatteryLevel = -1; // Default sea-level pressure in hPa
+int32_t globalBatteryLevel = -1; // Default to invalid state
+bool globalChargingState = false; // Global charging state
 
 extern SemaphoreHandle_t xVariometerMutex;
 SemaphoreHandle_t xSensorMutex;
+
+void  updateBatteryStatus();
 
 // =============================================================================
 // TASK INITIALIZATION FUNCTIONS
@@ -131,44 +136,14 @@ float pressure = 0.0f;
 float temperature = 0.0f;
 float altitude = 0.0f;
 float verticalSpeed = 0.0f;
-bool charging = false;
+
 void loop()
 {
   // Check for button press (sound toggle)
   M5.update();
-  
-  if (M5.BtnA.wasPressed())
-  {
-    globalSoundEnabled = !globalSoundEnabled;
-    drawFooter(globalSoundEnabled);
-    ESP_LOGI("main.cpp", "Sound toggled: %s", globalSoundEnabled ? "ON" : "MUTED");
-  }
-  if (M5.BtnB.wasPressed())
-  {
-    //Increase Volume
-    M5.Speaker.setVolume( std::max(255, M5.Speaker.getVolume() + 16) );
-    ESP_LOGI("main.cpp", "Volume increased to %d", M5.Speaker.getVolume());
-  }
-  if (M5.BtnC.wasPressed())
-  {
-    //Decrease Volume
-    M5.Speaker.setVolume( std::min(0, M5.Speaker.getVolume() - 16) );
-    ESP_LOGI("main.cpp", "Volume decreased to %d", M5.Speaker.getVolume());
-  }
 
-  int32_t batteryLevel = M5.Power.getBatteryLevel();
-  if(batteryLevel > 1)
-  {
-    globalBatteryLevel = batteryLevel;
-    ESP_LOGI("main.cpp", "Battery level updated: %d %%", batteryLevel);
-  }else if( M5.Power.isCharging()){
-    ESP_LOGI("main.cpp", "Battery level reading invalid (%d %%). Device is charging; retaining last known level: %d %%", batteryLevel, globalBatteryLevel);
-    globalBatteryLevel = 100; // retain last known good value
-    charging = true;
-  }else if(M5.Power.isCharging() == false){
-    ESP_LOGI("main.cpp", "Battery level reading invalid (%d %%). Device is not charging; retaining last known level: %d %%", batteryLevel, globalBatteryLevel);
-    charging = false;
-  }
+  handleButtonInput();
+  updateBatteryStatus();
 
   // Read sensor data with mutex protection
   if (xSemaphoreTake(xSensorMutex, portMAX_DELAY) == pdTRUE)
@@ -190,7 +165,7 @@ void loop()
   BLEConnectionState bleState = getBLEState();
 
   // Update header if battery or altitude changed significantly
-  drawHeader(globalBatteryLevel, charging, altitude, bleState);
+  drawHeader(globalBatteryLevel, globalChargingState, altitude, bleState);
 
   // Always update main display (vertical speed changes frequently)
   drawMainDisplay(verticalSpeed);
@@ -200,4 +175,13 @@ void loop()
            altitude, verticalSpeed, pressure, temperature, globalBatteryLevel);
   
   vTaskDelay(pdMS_TO_TICKS(DISPLAY_UPDATE_INTERVAL_MS));
+}
+
+void updateBatteryStatus()
+{
+  int32_t batteryLevel = M5.Power.getBatteryLevel();
+  bool isCharging = M5.Power.isCharging();
+  
+  // Update charging state
+  globalChargingState = isCharging;
 }

@@ -4,24 +4,21 @@
 #include "ble_uart.h"
 #include "esp_log.h"
 
-// Global LCD object definition
-M5GFX lcd;
-
 // =============================================================================
 // DISPLAY FUNCTION IMPLEMENTATIONS
 // =============================================================================
 
 void startupScreen()
 {
-  lcd.fillScreen(TFT_BLACK);
-  lcd.setCursor(0, 0);
-  lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-  lcd.setTextSize(1);
-  lcd.println("M5Stack Core2 XCTrack");
-  lcd.println("by @oli4wolf on github");
-  lcd.println("This is a non-commercial project.");
+  M5.Lcd.fillScreen(TFT_BLACK);
+  M5.Lcd.setCursor(0, 0);
+  M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+  M5.Lcd.setTextSize(1);
+  M5.Lcd.println("M5Stack Core2 XCTrack");
+  M5.Lcd.println("by @oli4wolf on github");
+  M5.Lcd.println("This is a non-commercial project.");
   int32_t batteryLevel = M5.Power.getBatteryLevel();
-  lcd.printf("Battery Level: %d %%\n", batteryLevel);
+  M5.Lcd.printf("Battery Level: %d %%\n", batteryLevel);
   ESP_LOGI("Display", "Startup screen drawn, battery=%d%%, waiting 5s", batteryLevel);
   vTaskDelay(5000);
 }
@@ -29,14 +26,14 @@ void startupScreen()
 void initializeDisplay()
 {
   // Ensure display is on and bright
-  lcd.wakeup();
-  lcd.setBrightness(255);
-  lcd.fillScreen(TFT_BLACK);
+  M5.Lcd.wakeup();
+  M5.Lcd.setBrightness(255);
+  M5.Lcd.fillScreen(TFT_BLACK);
   // Draw static header background
-  lcd.fillRect(0, 0, DISPLAY_WIDTH, HEADER_HEIGHT, HEADER_BG_COLOR);
+  M5.Lcd.fillRect(0, 0, DISPLAY_WIDTH, HEADER_HEIGHT, HEADER_BG_COLOR);
 
   // Draw static footer background
-  lcd.fillRect(0, DISPLAY_HEIGHT - FOOTER_HEIGHT, DISPLAY_WIDTH, FOOTER_HEIGHT, FOOTER_BG_COLOR);
+  M5.Lcd.fillRect(0, DISPLAY_HEIGHT - FOOTER_HEIGHT, DISPLAY_WIDTH, FOOTER_HEIGHT, FOOTER_BG_COLOR);
 
   // Initial footer with sound status
   extern bool globalSoundEnabled;
@@ -47,46 +44,46 @@ void drawHeader(int32_t battery, bool charging, float altitude, BLEConnectionSta
 {
   ESP_LOGI("Display", "drawHeader called - battery=%d, altitude=%.1fm charging=%s", battery, altitude, charging ? "true" : "false");
   // Clear header area (maintains background color)
-  lcd.fillRect(0, 0, DISPLAY_WIDTH, HEADER_HEIGHT, HEADER_BG_COLOR);
+  M5.Lcd.fillRect(0, 0, DISPLAY_WIDTH, HEADER_HEIGHT, HEADER_BG_COLOR);
 
   // Set text properties for header
-  lcd.setTextSize(HEADER_TEXT_SIZE);
-  lcd.setTextColor(TFT_WHITE, HEADER_BG_COLOR);
+  M5.Lcd.setTextSize(HEADER_TEXT_SIZE);
+  M5.Lcd.setTextColor(TFT_WHITE, HEADER_BG_COLOR);
 
   // Draw battery on left side
-  lcd.setCursor(5, 12);
+  M5.Lcd.setCursor(5, 12);
   if( charging ) {
-    lcd.printf("%d%% (C)", battery);
+    M5.Lcd.printf("%d%% (C)", battery);
   } else {
-    lcd.printf("%d%%", battery);
+    M5.Lcd.printf("%d%%", battery);
   }
 
   // Draw BLE status indicator if enabled
   if (BLE_SHOW_STATUS_ON_DISPLAY) {
-    lcd.setCursor(DISPLAY_WIDTH/2 - 50, 12);
+    M5.Lcd.setCursor(DISPLAY_WIDTH/2 - 50, 12);
     switch (bleState) {
       case BLE_CONNECTED:
-        lcd.setTextColor(TFT_GREEN, HEADER_BG_COLOR);
+        M5.Lcd.setTextColor(TFT_GREEN, HEADER_BG_COLOR);
         break;
       case BLE_CONNECTING:
-        lcd.setTextColor(TFT_YELLOW, HEADER_BG_COLOR);
+        M5.Lcd.setTextColor(TFT_YELLOW, HEADER_BG_COLOR);
         break;
       case BLE_FAILED:
       case BLE_DISCONNECTED:
-        lcd.setTextColor(TFT_RED, HEADER_BG_COLOR);
+        M5.Lcd.setTextColor(TFT_RED, HEADER_BG_COLOR);
         break;
     }
-    lcd.print("BLE");
-    lcd.setTextSize(HEADER_TEXT_SIZE);
-    lcd.setTextColor(TFT_WHITE, HEADER_BG_COLOR);
+    M5.Lcd.print("BLE");
+    M5.Lcd.setTextSize(HEADER_TEXT_SIZE);
+    M5.Lcd.setTextColor(TFT_WHITE, HEADER_BG_COLOR);
   }
 
   // Draw altitude on right side (right-aligned)
   char altStr[20];
   snprintf(altStr, sizeof(altStr), "Alt: %.1fm", altitude);
-  int textWidth = lcd.textWidth(altStr);
-  lcd.setCursor(DISPLAY_WIDTH - textWidth - 5, 12);
-  lcd.print(altStr);
+  int textWidth = M5.Lcd.textWidth(altStr);
+  M5.Lcd.setCursor(DISPLAY_WIDTH - textWidth - 5, 12);
+  M5.Lcd.print(altStr);
 }
 
 void drawMainDisplay(float vSpeed)
@@ -108,11 +105,11 @@ void drawMainDisplay(float vSpeed)
   }
 
   // Clear main display area
-  lcd.fillRect(0, HEADER_HEIGHT, DISPLAY_WIDTH, MAIN_DISPLAY_HEIGHT, TFT_BLACK);
+  M5.Lcd.fillRect(0, HEADER_HEIGHT, DISPLAY_WIDTH, MAIN_DISPLAY_HEIGHT, TFT_BLACK);
 
   // Set text properties for main display
-  lcd.setTextSize(MAIN_TEXT_SIZE);
-  lcd.setTextColor(color, TFT_BLACK);
+  M5.Lcd.setTextSize(MAIN_TEXT_SIZE);
+  M5.Lcd.setTextColor(color, TFT_BLACK);
 
   // Format vertical speed string with sign
   char vSpeedStr[20];
@@ -126,39 +123,39 @@ void drawMainDisplay(float vSpeed)
   }
 
   // Calculate center position
-  int textWidth = lcd.textWidth(vSpeedStr);
-  int textHeight = lcd.fontHeight();
+  int textWidth = M5.Lcd.textWidth(vSpeedStr);
+  int textHeight = M5.Lcd.fontHeight();
   int x = (DISPLAY_WIDTH - textWidth) / 2;
   int y = HEADER_HEIGHT + (MAIN_DISPLAY_HEIGHT - textHeight) / 2;
 
   // Draw vertical speed
-  lcd.setCursor(x, y);
-  lcd.print(vSpeedStr);
+  M5.Lcd.setCursor(x, y);
+  M5.Lcd.print(vSpeedStr);
 }
 
 void drawFooter(bool soundEnabled)
 {
   // Clear footer area
-  lcd.fillRect(0, DISPLAY_HEIGHT - FOOTER_HEIGHT, DISPLAY_WIDTH, FOOTER_HEIGHT, FOOTER_BG_COLOR);
+  M5.Lcd.fillRect(0, DISPLAY_HEIGHT - FOOTER_HEIGHT, DISPLAY_WIDTH, FOOTER_HEIGHT, FOOTER_BG_COLOR);
 
   // Set text properties
-  lcd.setTextSize(FOOTER_TEXT_SIZE);
+  M5.Lcd.setTextSize(FOOTER_TEXT_SIZE);
 
   // Draw speaker icon and status
-  lcd.setCursor(5, DISPLAY_HEIGHT - FOOTER_HEIGHT + 8);
+  M5.Lcd.setCursor(5, DISPLAY_HEIGHT - FOOTER_HEIGHT + 8);
   if (soundEnabled)
   {
-    lcd.setTextColor(TFT_WHITE, FOOTER_BG_COLOR);
-    lcd.print("[SPK] ON");
+    M5.Lcd.setTextColor(TFT_WHITE, FOOTER_BG_COLOR);
+    M5.Lcd.print("[SPK] ON");
   }
   else
   {
-    lcd.setTextColor(MUTED_GRAY_COLOR, FOOTER_BG_COLOR);
-    lcd.print("[X] MUTED");
+    M5.Lcd.setTextColor(MUTED_GRAY_COLOR, FOOTER_BG_COLOR);
+    M5.Lcd.print("[X] MUTED");
   }
-    lcd.setCursor(DISPLAY_WIDTH / 2, DISPLAY_HEIGHT - FOOTER_HEIGHT + 8);
-    lcd.print("+");
-    lcd.printf("  %d", M5.Speaker.getVolume());
-    lcd.setCursor(DISPLAY_WIDTH -40, DISPLAY_HEIGHT - FOOTER_HEIGHT + 8);
-    lcd.print("-");
+    M5.Lcd.setCursor(DISPLAY_WIDTH / 2, DISPLAY_HEIGHT - FOOTER_HEIGHT + 8);
+    M5.Lcd.print("+");
+    M5.Lcd.printf("  %d", M5.Speaker.getVolume());
+    M5.Lcd.setCursor(DISPLAY_WIDTH -40, DISPLAY_HEIGHT - FOOTER_HEIGHT + 8);
+    M5.Lcd.print("-");
 }

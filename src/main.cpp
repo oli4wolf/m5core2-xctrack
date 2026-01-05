@@ -94,11 +94,8 @@ void initializeM5Stack()
   cfg.external_rtc = false; // default=false. use Unit RTC.
   
   M5.begin(cfg);
-  ESP_LOGI("Display", "DEBUG: M5.begin() completed");
-  
-  lcd.init();
-  lcd.clear();
-  ESP_LOGI("Display", "lcd.init() completed, width=%d, height=%d", lcd.width(), lcd.height());
+  ESP_LOGI("Display", "M5.begin() completed, display initialized automatically");
+  ESP_LOGI("Display", "Display size: %dx%d", M5.Lcd.width(), M5.Lcd.height());
 }
 
 void setup()

@@ -1,8 +1,10 @@
 #include <esp_system.h> // For PRO_CPU_NUM and APP_CPU_NUM
 #include <M5Unified.h>  // Make the M5Unified library available to your program.
+#include <M5GFX.h>      // Include M5GFX for panel definitions
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h> // Required for mutex
+#include <Preferences.h>     // For NVS access to clear cached board type
 
 #include "esp_log.h" // For ESP logging functions
 
@@ -13,6 +15,7 @@
 #include "config.h"          // Include configuration constants
 #include "gui.h"             // Include GUI functions
 #include "button.h"          // Include button handling functions
+#include "power.h"           // Include power management functions
 #include "Arduino.h"
 
 // BLE Server example
@@ -29,8 +32,6 @@ bool globalChargingState = false; // Global charging state
 
 extern SemaphoreHandle_t xVariometerMutex;
 SemaphoreHandle_t xSensorMutex;
-
-void  updateBatteryStatus();
 
 // =============================================================================
 // TASK INITIALIZATION FUNCTIONS
@@ -97,10 +98,13 @@ void initializeM5Stack()
   cfg.internal_mic = false; // default=true. use internal microphone.
   cfg.external_imu = false; // default=false. use Unit Accel & Gyro.
   cfg.external_rtc = false; // default=false. use Unit RTC.
+  cfg.clear_display = true;
+  cfg.output_power = true;
   
   M5.begin(cfg);
-  ESP_LOGI("Display", "M5.begin() completed, display initialized automatically");
-  ESP_LOGI("Display", "Display size: %dx%d", M5.Lcd.width(), M5.Lcd.height());
+  
+  ESP_LOGI("Display", "M5.begin() completed - Board: %d, Display: %dx%d",
+           M5.getBoard(), M5.Display.width(), M5.Display.height());
 }
 
 void setup()
@@ -175,13 +179,4 @@ void loop()
            altitude, verticalSpeed, pressure, temperature, globalBatteryLevel);
   
   vTaskDelay(pdMS_TO_TICKS(DISPLAY_UPDATE_INTERVAL_MS));
-}
-
-void updateBatteryStatus()
-{
-  int32_t batteryLevel = M5.Power.getBatteryLevel();
-  bool isCharging = M5.Power.isCharging();
-  
-  // Update charging state
-  globalChargingState = isCharging;
 }

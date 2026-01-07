@@ -23,9 +23,8 @@ static KalmanFilter* kalmanFilter = nullptr;
 // Moving average buffer for vertical speed
 static std::vector<float> verticalSpeedHistory;
 
-// Global variables for variometer
-float globalAltitude_m = 0.0; // Current altitude in meters
-float globalVerticalSpeed_mps = 0.0; // Vertical speed in meters per second
+// Global variometer data structure and mutex
+VariometerData globalVariometerData;
 SemaphoreHandle_t xVariometerMutex;
 
 // Constants for altitude calculation (standard atmosphere)
@@ -140,10 +139,39 @@ void variometerTask(void *pvParameters) {
                 avgVerticalSpeed /= verticalSpeedHistory.size();
             }
 
-            if (xSemaphoreTake(xVariometerMutex, portMAX_DELAY) == pdTRUE) {
-                globalAltitude_m = filteredAltitude; // Already in meters
-                globalVerticalSpeed_mps = avgVerticalSpeed; // Moving averaged vertical speed in m/s
-                xSemaphoreGive(xVariometerMutex);
+            // Update global variables with validated values
+            // Use reasonable physical limits to detect sensor/calculation errors
+            const float MAX_ALTITUDE_M = 9000.0f;  // Typical paragliding max ~8000m
+            const float MIN_ALTITUDE_M = -500.0f;  // Below sea level limit
+            const float MAX_VSPEED_MPS = 50.0f;    // Realistic vertical speed limit (~180 km/h)
+            
+            // Validate filtered altitude
+            bool altitudeValid = !isnan(filteredAltitude) && !isinf(filteredAltitude) &&
+                                 filteredAltitude >= MIN_ALTITUDE_M &&
+                                 filteredAltitude <= MAX_ALTITUDE_M;
+            
+            // Validate vertical speed
+            bool vspeedValid = !isnan(avgVerticalSpeed) && !isinf(avgVerticalSpeed) &&
+                               fabs(avgVerticalSpeed) <= MAX_VSPEED_MPS;
+            
+            if (!altitudeValid) {
+                ESP_LOGW("Variometer", "Invalid altitude: %.2f m - skipping update", filteredAltitude);
+            }
+            
+            if (!vspeedValid) {
+                ESP_LOGW("Variometer", "Invalid vertical speed: %.2f m/s - skipping update", avgVerticalSpeed);
+            }
+            
+            // Only update globals if both values are valid
+            if (altitudeValid && vspeedValid) {
+                if (xSemaphoreTake(xVariometerMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+                    // Atomic update of variometer data using struct
+                    globalVariometerData.altitude_m = filteredAltitude;
+                    globalVariometerData.verticalSpeed_mps = avgVerticalSpeed;
+                    xSemaphoreGive(xVariometerMutex);
+                } else {
+                    ESP_LOGW("Variometer", "Failed to acquire mutex for global update");
+                }
             }
 
             // Tone generation logic

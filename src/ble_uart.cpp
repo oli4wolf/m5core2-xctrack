@@ -7,10 +7,8 @@
 #include "config.h"
 #include <M5Unified.h>
 #include <esp_log.h>
-// External variables from main.cpp
-extern float globalAltitude_m;
-extern float globalVerticalSpeed_mps;
-extern SemaphoreHandle_t xVariometerMutex;
+// External variables from variometer_task
+#include "variometer_task.h" // For VariometerData struct
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h>
@@ -124,8 +122,8 @@ void ble_task(void *pvParameter)
                 // Read variometer data with NaN guards
                 if (xSemaphoreTake(xVariometerMutex, (TickType_t)10) == pdTRUE) {
                     // Guard against NaN values - use 0 as safe default
-                    float altitude = globalAltitude_m;
-                    float vertSpeed = globalVerticalSpeed_mps;
+                    float altitude = globalVariometerData.altitude_m;
+                    float vertSpeed = globalVariometerData.verticalSpeed_mps;
                     xSemaphoreGive(xVariometerMutex);
                     
                     // Only convert valid float values to int32_t

@@ -22,8 +22,6 @@
 // https://github.com/naoki-sawada/m5stack-ble/blob/master/m5stack-ble/m5stack-ble.ino
 
 // Variometer global variables
-extern float globalAltitude_m;
-extern float globalVerticalSpeed_mps;
 float globalPressure = 0.0f;
 float globalTemperature = 0.0f;                  // Added for global temperature
 bool globalSoundEnabled = DEFAULT_SOUND_ENABLED; // Global variable to control sound output at runtime
@@ -159,8 +157,8 @@ void loop()
   // Read variometer data with mutex protection
   if (xSemaphoreTake(xVariometerMutex, portMAX_DELAY) == pdTRUE)
   {
-    altitude = globalAltitude_m;
-    verticalSpeed = globalVerticalSpeed_mps;
+    altitude = globalVariometerData.altitude_m;
+    verticalSpeed = globalVariometerData.verticalSpeed_mps;
     xSemaphoreGive(xVariometerMutex);
   }
 

@@ -6,8 +6,6 @@
 
 // External global variables
 extern bool globalSoundEnabled;
-extern int32_t globalBatteryLevel;
-extern bool globalChargingState;
 
 /**
  * @brief Handles button input from M5Stack buttons

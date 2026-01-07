@@ -27,9 +27,7 @@ extern float globalVerticalSpeed_mps;
 float globalPressure = 0.0f;
 float globalTemperature = 0.0f;                  // Added for global temperature
 bool globalSoundEnabled = DEFAULT_SOUND_ENABLED; // Global variable to control sound output at runtime
-int32_t globalBatteryLevel = -1; // Default to invalid state
-bool globalChargingState = false; // Global charging state (actively charging battery)
-bool globalUsbPowerState = false; // Global USB/external power connected state
+BatteryState globalBatteryState = {-1, false, false}; // Battery state: level=-1 (invalid), not charging, no USB
 
 extern SemaphoreHandle_t xVariometerMutex;
 SemaphoreHandle_t xSensorMutex;
@@ -148,7 +146,7 @@ void loop()
   M5.update();
 
   handleButtonInput();
-  updateBatteryStatus();
+  globalBatteryState = updateBatteryStatus();
 
   // Read sensor data with mutex protection
   if (xSemaphoreTake(xSensorMutex, portMAX_DELAY) == pdTRUE)
@@ -169,15 +167,15 @@ void loop()
   // Get BLE connection state
   BLEConnectionState bleState = getBLEState();
 
-  // Update header with battery, charging, USB power, altitude, and BLE state
-  drawHeader(globalBatteryLevel, globalChargingState, globalUsbPowerState, altitude, bleState);
+  // Update header with battery state, altitude, and BLE state
+  drawHeader(globalBatteryState, altitude, bleState);
 
   // Always update main display (vertical speed changes frequently)
   drawMainDisplay(verticalSpeed);
 
   // Log for debugging
   ESP_LOGI("main.cpp", "Altitude: %.1f, V-Speed: %.2f, Pressure: %.1f, Temperature: %.2f, Battery: %d %%",
-           altitude, verticalSpeed, pressure, temperature, globalBatteryLevel);
+           altitude, verticalSpeed, pressure, temperature, globalBatteryState.level);
   
   vTaskDelay(pdMS_TO_TICKS(DISPLAY_UPDATE_INTERVAL_MS));
 }

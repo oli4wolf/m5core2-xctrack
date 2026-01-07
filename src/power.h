@@ -4,10 +4,22 @@
 #include <stdint.h>
 
 /**
- * @brief Updates the battery status by reading current battery level,
- *        charging state, voltage, and USB power status. Filters invalid
- *        readings and updates global battery state variables.
+ * @brief Battery state structure containing all battery-related information
  */
-void updateBatteryStatus();
+struct BatteryState {
+    int32_t level;        // Battery level 0-100%
+    bool isCharging;      // TRUE when actively charging battery
+    bool usbConnected;    // TRUE when USB/external power is present
+};
+
+/**
+ * @brief Reads and validates battery status from hardware
+ * @return BatteryState structure with validated battery information
+ * 
+ * This function reads battery level, charging state, voltage, and current.
+ * It filters invalid readings (e.g., spurious 0% readings when voltage is high)
+ * and returns a validated battery state.
+ */
+BatteryState updateBatteryStatus();
 
 #endif // POWER_H

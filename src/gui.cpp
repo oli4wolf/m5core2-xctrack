@@ -40,10 +40,13 @@ void initializeDisplay()
   drawFooter(globalSoundEnabled);
 }
 
-void drawHeader(int32_t battery, bool charging, bool usbPower, float altitude, BLEConnectionState bleState)
+void drawHeader(const BatteryState& batteryState, float altitude, BLEConnectionState bleState)
 {
   ESP_LOGI("Display", "drawHeader called - battery=%d, altitude=%.1fm charging=%s, usb=%s",
-           battery, altitude, charging ? "true" : "false", usbPower ? "true" : "false");
+           batteryState.level, altitude,
+           batteryState.isCharging ? "true" : "false",
+           batteryState.usbConnected ? "true" : "false");
+  
   // Clear header area (maintains background color)
   M5.Display.fillRect(0, 0, DISPLAY_WIDTH, HEADER_HEIGHT, HEADER_BG_COLOR);
 
@@ -53,15 +56,15 @@ void drawHeader(int32_t battery, bool charging, bool usbPower, float altitude, B
 
   // Draw battery on left side with power status
   M5.Display.setCursor(5, 12);
-  if( charging ) {
+  if (batteryState.isCharging) {
     // Actively charging the battery
-    M5.Display.printf("CHG %d%%", battery);
-  } else if ( usbPower ) {
+    M5.Display.printf("CHG %d%%", batteryState.level);
+  } else if (batteryState.usbConnected) {
     // USB connected but not actively charging (battery likely full)
-    M5.Display.printf("USB %d%%", battery);
+    M5.Display.printf("USB %d%%", batteryState.level);
   } else {
     // Running on battery only
-    M5.Display.printf("%d%%", battery);
+    M5.Display.printf("%d%%", batteryState.level);
   }
 
   // Draw BLE status indicator if enabled

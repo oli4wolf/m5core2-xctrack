@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-void initVariometerTask();
+void initVariometer();
 void variometerTask(void *pvParameters);
 void updateDisplayWithTelemetry(float pressure, float temperature, float baroAltitude, float verticalSpeed);
 

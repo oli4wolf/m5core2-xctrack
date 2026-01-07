@@ -49,7 +49,7 @@ float pressureToAltitude(float pressure_hPa) {
     return altitude;
 }
 
-void initVariometerTask() {
+void initVariometer() {
     xVariometerMutex = xSemaphoreCreateMutex();
     if (xVariometerMutex == NULL) {
         ESP_LOGE("Variometer", "Failed to create variometer mutex");

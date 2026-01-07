@@ -20,7 +20,7 @@ void initSensor()
 {
     M5.Ex_I2C.release();
     delay(100); // Short delay to ensure I2C bus is released
-    Wire.begin(M5.Ex_I2C.getSDA(), M5.Ex_I2C.getSCL(), 400000); // Use external I2C pins with 400kHz
+    Wire.begin(14, 13, 400000); // Use external I2C pins with 400kHz
     
     // Create pressure queue for thread-safe communication with variometer task
     xPressureQueue = xQueueCreate(PRESSURE_QUEUE_LENGTH, sizeof(float));

@@ -1,6 +1,6 @@
 #include <esp_system.h> // For PRO_CPU_NUM and APP_CPU_NUM
 #include <M5Unified.h>  // Make the M5Unified library available to your program.
-#include <M5GFX.h>      // Include M5GFX for panel definitions
+#include <M5GFX.h>  // Include M5GFX for display handling
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h> // Required for mutex
@@ -102,7 +102,7 @@ void initializeM5Stack()
   cfg.output_power = true;
   
   M5.begin(cfg);
-  
+
   ESP_LOGI("Display", "M5.begin() completed - Board: %d, Display: %dx%d",
            M5.getBoard(), M5.Display.width(), M5.Display.height());
 }
@@ -122,11 +122,11 @@ void setup()
 
   // MUST initialize M5Stack BEFORE reading battery level
   initializeM5Stack();
-  startupScreen(); // used to delay simplifies loading new code when something goes wrong.
+  //startupScreen(); // used to delay simplifies loading new code when something goes wrong.
   initSound();     // Initialize the sound module
   initSensor();    // Start the sensor reading task
   initializeSensorTask();
-  initVariometerTask(); // Start the variometer task
+  initVariometer(); // Start the variometer task
 
   initializeVariometerTask(); // Initialize the variometer task components after sensor Task.
   initializeBLE();

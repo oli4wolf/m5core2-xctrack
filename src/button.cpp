@@ -32,6 +32,7 @@ void handleButtonInput()
     uint8_t currentVolume = M5.Speaker.getVolume();
     uint8_t newVolume = std::min(VOLUME_MAX, static_cast<uint8_t>(currentVolume + VOLUME_STEP));
     M5.Speaker.setVolume(newVolume);
+    drawFooter(globalSoundEnabled);
     ESP_LOGI("button", "Volume increased: %d -> %d", currentVolume, newVolume);
   }
   
@@ -40,10 +41,11 @@ void handleButtonInput()
   {
     uint8_t currentVolume = M5.Speaker.getVolume();
     // Prevent underflow by checking before subtraction
-    uint8_t newVolume = (currentVolume > VOLUME_STEP) 
-                        ? (currentVolume - VOLUME_STEP) 
+    uint8_t newVolume = (currentVolume > VOLUME_STEP)
+                        ? (currentVolume - VOLUME_STEP)
                         : VOLUME_MIN;
     M5.Speaker.setVolume(newVolume);
+    drawFooter(globalSoundEnabled);
     ESP_LOGI("button", "Volume decreased: %d -> %d", currentVolume, newVolume);
   }
 }

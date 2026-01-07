@@ -5,12 +5,21 @@
 // External global variables defined in main.cpp
 extern int32_t globalBatteryLevel;
 extern bool globalChargingState;
+extern bool globalUsbPowerState;
 
 void updateBatteryStatus()
 {
   int32_t batteryLevel = M5.Power.getBatteryLevel();
   bool isCharging = M5.Power.isCharging();
   float voltage = M5.Power.getBatteryVoltage();
+  int32_t batteryCurrent = M5.Power.getBatteryCurrent();
+  
+  // Detect USB/external power presence:
+  // USB is connected when:
+  // 1. Battery is actively charging (isCharging == true), OR
+  // 2. Battery voltage is high (>4.0V) AND current is non-negative (not discharging)
+  //    This covers the case when battery is full and not actively charging
+  bool usbConnected = isCharging || (voltage > 4000.0f && batteryCurrent >= 0);
   
   // Log battery reading details for debugging
   static int32_t lastValidBatteryLevel = -1;
@@ -61,5 +70,6 @@ void updateBatteryStatus()
   
   // Update global state with validated reading
   globalBatteryLevel = batteryLevel;
-  globalChargingState = isCharging;
+  globalChargingState = isCharging;      // TRUE only when actively charging
+  globalUsbPowerState = usbConnected;    // TRUE when USB power is present
 }

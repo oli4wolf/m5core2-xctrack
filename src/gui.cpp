@@ -40,9 +40,10 @@ void initializeDisplay()
   drawFooter(globalSoundEnabled);
 }
 
-void drawHeader(int32_t battery, bool charging, float altitude, BLEConnectionState bleState)
+void drawHeader(int32_t battery, bool charging, bool usbPower, float altitude, BLEConnectionState bleState)
 {
-  ESP_LOGI("Display", "drawHeader called - battery=%d, altitude=%.1fm charging=%s", battery, altitude, charging ? "true" : "false");
+  ESP_LOGI("Display", "drawHeader called - battery=%d, altitude=%.1fm charging=%s, usb=%s",
+           battery, altitude, charging ? "true" : "false", usbPower ? "true" : "false");
   // Clear header area (maintains background color)
   M5.Display.fillRect(0, 0, DISPLAY_WIDTH, HEADER_HEIGHT, HEADER_BG_COLOR);
 
@@ -50,11 +51,16 @@ void drawHeader(int32_t battery, bool charging, float altitude, BLEConnectionSta
   M5.Display.setTextSize(HEADER_TEXT_SIZE);
   M5.Display.setTextColor(TFT_WHITE, HEADER_BG_COLOR);
 
-  // Draw battery on left side
+  // Draw battery on left side with power status
   M5.Display.setCursor(5, 12);
   if( charging ) {
-    M5.Display.printf("%d%% (C)", battery);
+    // Actively charging the battery
+    M5.Display.printf("CHG %d%%", battery);
+  } else if ( usbPower ) {
+    // USB connected but not actively charging (battery likely full)
+    M5.Display.printf("USB %d%%", battery);
   } else {
+    // Running on battery only
     M5.Display.printf("%d%%", battery);
   }
 

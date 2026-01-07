@@ -28,7 +28,8 @@ float globalPressure = 0.0f;
 float globalTemperature = 0.0f;                  // Added for global temperature
 bool globalSoundEnabled = DEFAULT_SOUND_ENABLED; // Global variable to control sound output at runtime
 int32_t globalBatteryLevel = -1; // Default to invalid state
-bool globalChargingState = false; // Global charging state
+bool globalChargingState = false; // Global charging state (actively charging battery)
+bool globalUsbPowerState = false; // Global USB/external power connected state
 
 extern SemaphoreHandle_t xVariometerMutex;
 SemaphoreHandle_t xSensorMutex;
@@ -168,8 +169,8 @@ void loop()
   // Get BLE connection state
   BLEConnectionState bleState = getBLEState();
 
-  // Update header if battery or altitude changed significantly
-  drawHeader(globalBatteryLevel, globalChargingState, altitude, bleState);
+  // Update header with battery, charging, USB power, altitude, and BLE state
+  drawHeader(globalBatteryLevel, globalChargingState, globalUsbPowerState, altitude, bleState);
 
   // Always update main display (vertical speed changes frequently)
   drawMainDisplay(verticalSpeed);

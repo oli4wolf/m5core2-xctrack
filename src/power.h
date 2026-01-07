@@ -5,8 +5,8 @@
 
 /**
  * @brief Updates the battery status by reading current battery level,
- *        charging state, and voltage. Filters invalid readings and
- *        updates global battery state variables.
+ *        charging state, voltage, and USB power status. Filters invalid
+ *        readings and updates global battery state variables.
  */
 void updateBatteryStatus();
 

@@ -22,8 +22,6 @@
 // https://github.com/naoki-sawada/m5stack-ble/blob/master/m5stack-ble/m5stack-ble.ino
 
 // Variometer global variables
-float globalPressure = 0.0f;
-float globalTemperature = 0.0f;                  // Added for global temperature
 bool globalSoundEnabled = DEFAULT_SOUND_ENABLED; // Global variable to control sound output at runtime
 BatteryState globalBatteryState = {-1, false, false}; // Battery state: level=-1 (invalid), not charging, no USB
 
@@ -133,8 +131,6 @@ void setup()
 }
 
 // Display update at configured interval
-float pressure = 0.0f;
-float temperature = 0.0f;
 float altitude = 0.0f;
 float verticalSpeed = 0.0f;
 
@@ -145,14 +141,6 @@ void loop()
 
   handleButtonInput();
   globalBatteryState = updateBatteryStatus();
-
-  // Read sensor data with mutex protection
-  if (xSemaphoreTake(xSensorMutex, portMAX_DELAY) == pdTRUE)
-  {
-    pressure = globalPressure;
-    temperature = globalTemperature;
-    xSemaphoreGive(xSensorMutex);
-  }
 
   // Read variometer data with mutex protection
   if (xSemaphoreTake(xVariometerMutex, portMAX_DELAY) == pdTRUE)
@@ -172,8 +160,8 @@ void loop()
   drawMainDisplay(verticalSpeed);
 
   // Log for debugging
-  ESP_LOGI("main.cpp", "Altitude: %.1f, V-Speed: %.2f, Pressure: %.1f, Temperature: %.2f, Battery: %d %%",
-           altitude, verticalSpeed, pressure, temperature, globalBatteryState.level);
+  ESP_LOGI("main.cpp", "Altitude: %.1f, V-Speed: %.2f, Battery: %d %%",
+           altitude, verticalSpeed, globalBatteryState.level);
   
   vTaskDelay(pdMS_TO_TICKS(DISPLAY_UPDATE_INTERVAL_MS));
 }

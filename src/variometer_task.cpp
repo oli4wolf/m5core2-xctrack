@@ -9,11 +9,6 @@
 #include "config.h" // Include configuration constants
 #include "sound.h" // Include sound module
 
-// Declare extern global variables from main.cpp
-extern float globalPressure;    // Still used for initialization
-extern float globalTemperature; // Added for global temperature
-extern SemaphoreHandle_t xSensorMutex;
-
 // Declare extern pressure queue from sensor_task.cpp
 extern QueueHandle_t xPressureQueue;
 
@@ -69,33 +64,6 @@ void variometerTask(void *pvParameters) {
     unsigned long previousMillis = millis();
     const unsigned long updateIntervalMs = VARIOMETER_UPDATE_INTERVAL_MS; // Update every VARIOMETER_UPDATE_INTERVAL_MS
     const float altitudeChangeThreshold_mps = ALTITUDE_CHANGE_THRESHOLD_MPS; // meters per second for tone trigger
-
-    // Initial altitude reading and set Kalman filter initial state
-    // Wait for valid sensor data before initializing
-    float initialPressure = 0.0f;
-    int attempts = 0;
-    while (initialPressure <= 0.0f && attempts < 100) {
-        if (xSemaphoreTake(xSensorMutex, portMAX_DELAY) == pdTRUE) {
-            initialPressure = globalPressure;
-            xSemaphoreGive(xSensorMutex);
-        }
-        if (initialPressure <= 0.0f) {
-            ESP_LOGW("Variometer", "Waiting for valid pressure data (attempt %d/100): %.2f hPa", attempts + 1, initialPressure);
-            vTaskDelay(pdMS_TO_TICKS(100)); // Wait 100ms before retry
-            attempts++;
-        }
-    }
-    
-    if (initialPressure > 0.0f) {
-        float initialAltitude = pressureToAltitude(initialPressure);
-        ESP_LOGI("Variometer", "Initializing with pressure=%.2f hPa, altitude=%.2f m", initialPressure, initialAltitude);
-        kalmanFilter->setInitialState(initialAltitude, 0.0f); // Initial vertical speed 0
-        previousAltitude = initialAltitude; // For tone logic
-    } else {
-        ESP_LOGE("Variometer", "Failed to get valid pressure after %d attempts, using default altitude 0m", attempts);
-        kalmanFilter->setInitialState(0.0f, 0.0f);
-        previousAltitude = 0.0f;
-    }
 
     for (;;) {
         unsigned long currentMillis = millis();

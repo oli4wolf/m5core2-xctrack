@@ -5,11 +5,6 @@
 #include <freertos/queue.h>  // Required for queue
 #include "config.h"          // Required for PRESSURE_QUEUE_LENGTH and threshold
 
-// Declare extern global variables and mutex from main.cpp
-extern float globalPressure;
-extern float globalTemperature;
-extern SemaphoreHandle_t xSensorMutex;
-
 // Declare pressure queue for thread-safe buffering to variometer task
 QueueHandle_t xPressureQueue = NULL;
 
@@ -58,17 +53,6 @@ void sensorReadTask(void *pvParameters)
             pressure = barometricSensor.getPressure();
             temperature = barometricSensor.getTemperature();
             consecutiveFailures = 0; // Reset failure counter on success
-
-            globalPressure = pressure;
-            if (xSemaphoreTake(xSensorMutex, (TickType_t)10) == pdTRUE)
-            {
-                globalTemperature = temperature;
-                xSemaphoreGive(xSensorMutex);
-            }
-            else
-            {
-                ESP_LOGE("Climb", "SensorReadTask: Could not take sensor mutex.");
-            }
 
             // Send pressure to queue for variometer task (non-blocking)
             if (xQueueSend(xPressureQueue, &pressure, 0) != pdPASS)
